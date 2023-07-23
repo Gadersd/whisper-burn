@@ -1,6 +1,6 @@
 # Whisper Burn: Rust Implementation of OpenAI's Whisper Transcription Model
 
-**Whisper Burn** is a Rust implementation of OpenAI's Whisper Transcription model using the Rust deep learning framework, Burn.
+**Whisper Burn** is a Rust implementation of OpenAI's Whisper transcription model using the Rust deep learning framework, Burn.
 
 ## License
 
