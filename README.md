@@ -25,7 +25,7 @@ git clone https://github.com/Gadersd/whisper-burn.git
 Then, navigate to the project folder:
 
 ```
-cd burn
+cd whisper-burn
 ```
 
 #### 2. Download Whisper Tiny English Model
@@ -33,8 +33,8 @@ cd burn
 Use the following commands to download the Whisper tiny English model:
 
 ```
-wget https://huggingface.co/Gadersd/whisper-burn/blob/main/tiny_en/tiny_en.cfg
-wget https://huggingface.co/Gadersd/whisper-burn/blob/main/tiny_en/tiny_en.mpk.gz
+wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.cfg
+wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.mpk.gz
 ```
 
 ### CUDA USERS
