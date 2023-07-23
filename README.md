@@ -65,6 +65,6 @@ Run the application with the following command:
 cargo run --release audio.wav tiny_en
 ```
 
-This usage assumes that "audio.wav" is the audio file you want to transcribe, and "tiny_en/tiny_en" is the model to use. Please adjust according to your specific needs.
+This usage assumes that "audio.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.
 
 Enjoy using **Whisper Burn**!
