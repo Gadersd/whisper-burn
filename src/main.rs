@@ -58,7 +58,7 @@ fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, waveform: Tensor<B, 2>, sa
     if n_ctx > n_ctx_max {
         println!("Audio exceeds maximum length. Audio will be clipped.");
     }
-    let mels = mels.slice([0..1, 0..(n_ctx.min(n_ctx_max))]);
+    let mels = mels.slice([0..1, 0..n_mel, 0..(n_ctx.min(n_ctx_max))]);
 
     let start_token = bpe.special_token(SpecialToken::StartofTranscript).unwrap();
     let end_token = bpe.special_token(SpecialToken::EndofText).unwrap();
