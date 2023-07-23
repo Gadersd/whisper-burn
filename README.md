@@ -52,7 +52,7 @@ export TORCH_CUDA_VERSION=cu113
 Once you've finished setting up, you can run the application using this command:
 
 ```
-cargo run --release audio.wav tiny_en/tiny_en
+cargo run --release audio.wav tiny_en
 ```
 
 ### MAC USERS
@@ -62,7 +62,7 @@ cargo run --release audio.wav tiny_en/tiny_en
 Run the application with the following command:
 
 ```
-cargo run --release audio.wav tiny_en/tiny_en
+cargo run --release audio.wav tiny_en
 ```
 
 This usage assumes that "audio.wav" is the audio file you want to transcribe, and "tiny_en/tiny_en" is the model to use. Please adjust according to your specific needs.
