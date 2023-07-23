@@ -2,10 +2,13 @@
 
 **Whisper Burn** is a Rust implementation of OpenAI's Whisper Transcription model using the Rust deep learning framework, Burn.
 
-
 ## License
 
 This project is licensed under the terms of the MIT license.
+
+## Model Files
+
+All the Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
 
 ## Installation & Usage
 
