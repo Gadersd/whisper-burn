@@ -3,7 +3,7 @@ use std::f32::NEG_INFINITY;
 use burn::{
     config::Config, 
     module::{Module, Param},
-    nn::{self, conv::{Conv1d, Conv1dConfig, Conv1dRecord, Conv1dPaddingConfig}},
+    nn::{self, conv::{Conv1d, Conv1dConfig, Conv1dRecord}, PaddingConfig1d},
     tensor::{
         backend::Backend,
         activation::softmax, 
@@ -143,9 +143,9 @@ pub struct AudioEncoderConfig {
 
 impl AudioEncoderConfig {
     pub fn init<B: Backend>(&self) -> AudioEncoder<B> {
-        let conv1 = Conv1dConfig::new(self.n_mels, self.n_audio_state, 3).with_padding(Conv1dPaddingConfig::Explicit(1)).init();
+        let conv1 = Conv1dConfig::new(self.n_mels, self.n_audio_state, 3).with_padding(PaddingConfig1d::Explicit(1)).init();
         let gelu1 = nn::GELU::new();
-        let conv2 = Conv1dConfig::new(self.n_audio_state, self.n_audio_state, 3).with_padding(Conv1dPaddingConfig::Explicit(1)).with_stride(2).init();
+        let conv2 = Conv1dConfig::new(self.n_audio_state, self.n_audio_state, 3).with_padding(PaddingConfig1d::Explicit(1)).with_stride(2).init();
         let gelu2 = nn::GELU::new();
         let blocks: Vec<_> = (0..self.n_audio_layer).into_iter().map(|_| ResidualEncoderAttentionBlockConfig::new(self.n_audio_state, self.n_audio_head).init()).collect();
         let ln_post = nn::LayerNormConfig::new(self.n_audio_state).init();
