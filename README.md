@@ -10,10 +10,6 @@ This project is licensed under the terms of the MIT license.
 
 All the Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
 
-## Installation & Usage
-
-Before starting, ensure you have the necessary tools & libraries installed in your system. These instructions are for both CUDA and Mac users.
-
 #### 1. Clone the Repository
 
 Clone the repository to your local machine using the following command:
@@ -37,29 +33,9 @@ wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.cf
 wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.mpk.gz
 ```
 
-### CUDA USERS
-
-#### 3. Set Environment Variable for Torch CUDA Version
-
-Set your Torch CUDA version environment variable
-
-```
-export TORCH_CUDA_VERSION=cu113
-```
-
-#### 4. Run the Application
-
-Once you've finished setting up, you can run the application using this command:
-
-```
-cargo run --release audio.wav tiny_en
-```
-
-### MAC USERS
-
 #### 3. Run the Application
 
-Run the application with the following command:
+Once you've finished setting up, you can run the application using this command:
 
 ```
 cargo run --release audio.wav tiny_en
