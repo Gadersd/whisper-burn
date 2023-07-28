@@ -28,9 +28,17 @@ impl Gpt2Tokenizer {
         self.tokenizer.token_to_id(&token.to_string()).map(|t| t as usize)
     }
 
-    pub fn decode(&self, tokens: &[usize]) -> Result<String> {
+    pub fn decode(&self, tokens: &[usize], skip_special: bool) -> Result<String> {
         self.tokenizer
-            .decode(tokens.iter().map(|t| *t as u32).collect(), false)
+            .decode(tokens.iter().map(|t| *t as u32).collect(), skip_special)
+    }
+
+    pub fn is_special(&self, token: usize) -> bool {
+        self.tokenizer
+            .decode(vec![token as u32], true)
+            .ok()
+            .map(|s| s.is_empty())
+            .unwrap_or(false)
     }
 
     pub fn vocab_size(&self) -> usize {
@@ -149,7 +157,7 @@ pub enum SpecialToken {
     NoSpeech, 
     NoTimeStamps, 
     Language(String), 
-    Range(f64), 
+    Timestamp(f64), 
 }
 
 impl ToString for SpecialToken {
@@ -164,7 +172,7 @@ impl ToString for SpecialToken {
             SpecialToken::NoSpeech => "<|nospeech|>".into(), 
             SpecialToken::NoTimeStamps =>  "<|notimestamps|>".into(), 
             SpecialToken::Language(lang) => format!("<|{}|>", lang), 
-            SpecialToken::Range(val) => format!("<|{:.2}|>", val), 
+            SpecialToken::Timestamp(val) => format!("<|{:.2}|>", val), 
         }
     }
 }
