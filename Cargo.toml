@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 burn = "0.8.0"
-burn-tch = "0.8.0"
+burn-wgpu = "0.8.0"
 serde = {version = "1.0.171", features = ["std", "derive"]}
 num-traits = "0.2.15"
 hound = "3.5.0"

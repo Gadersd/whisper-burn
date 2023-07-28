@@ -4,6 +4,8 @@ use whisper::model::*;
 use whisper::helper::*;
 use whisper::token;
 
+use burn_wgpu::{WgpuBackend, WgpuDevice, AutoGraphicsApi};
+
 use burn::{
     config::Config, 
     module::Module, 
@@ -103,14 +105,12 @@ fn load_whisper_model_file<B: Backend>(config: &WhisperConfig, filename: &str) -
     .map(|record| config.init().load_record(record))
 }
 
-#[cfg(feature = "f16")]
-type Elem = burn::tensor::f16;
-#[cfg(not(feature = "f16"))]
-type Elem = f32;
-
 use std::{env, process};
 
 fn main() {
+    type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
+    let device = WgpuDevice::BestAvailable;
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() < 3 {
@@ -120,14 +120,6 @@ fn main() {
 
     let wav_file = &args[1];
     let model_name = &args[2];
-
-    let device = if cfg!(target_os = "macos") {
-        burn_tch::TchDevice::Mps
-    } else {
-        burn_tch::TchDevice::Cuda(0)
-    };
-
-    type Backend = burn_tch::TchBackend<Elem>;
 
     let whisper_config = match WhisperConfig::load(&format!("{}.cfg", model_name)) {
         Ok(config) => config,
