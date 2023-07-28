@@ -45,7 +45,7 @@ version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc936419f96fa211c1b9166887b38e5e40b19958e5b895be7c1f93adec7071ac"
 dependencies = [
- "memchr 2.5.0",
+ "memchr",
 ]
 
 [[package]]
@@ -54,7 +54,7 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43f6cb1bf222025340178f382c426f13757b2960e89779dfcb319c32542a5a41"
 dependencies = [
- "memchr 2.5.0",
+ "memchr",
 ]
 
 [[package]]
@@ -194,7 +194,8 @@ checksum = "a3e2c3daef883ecc1b5d58c15adae93470a91d425f3532ba1695849656af3fc1"
 [[package]]
 name = "burn"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87940584409e18d053f2d0cee015993f55588c8cd0a3216b189cc4b8d30571ee"
 dependencies = [
  "burn-core",
  "burn-train",
@@ -203,7 +204,8 @@ dependencies = [
 [[package]]
 name = "burn-autodiff"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2513e7b559fd1042204a0bf2a4aeedd1f89d968d5474e0643fb1bfff60501114"
 dependencies = [
  "burn-common",
  "burn-tensor",
@@ -215,7 +217,8 @@ dependencies = [
 [[package]]
 name = "burn-common"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7af5b6e414f20bd4f718585a1e4fcd5b03347edad65ede3e6f4bb26c4a1a30a"
 dependencies = [
  "const-random",
  "rand",
@@ -226,7 +229,8 @@ dependencies = [
 [[package]]
 name = "burn-core"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce665fd8eeb9f69ef68de54853aeb254e0597e1cf52444ddb78d8a2a5ca26234"
 dependencies = [
  "bincode",
  "burn-autodiff",
@@ -250,7 +254,8 @@ dependencies = [
 [[package]]
 name = "burn-dataset"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a026d10e44c5f375bfd113c865f305449ac5cda987cced04a461db79cf9a291"
 dependencies = [
  "csv",
  "derive-new",
@@ -275,7 +280,8 @@ dependencies = [
 [[package]]
 name = "burn-derive"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "86b9170bf2cf6e1375db8cc5f7222ed9fd7c172d82450a5d53fcff3b2f3e694a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -285,7 +291,8 @@ dependencies = [
 [[package]]
 name = "burn-tch"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de60f9841be898fdcefb212ba6de8e1ec2bdaa3b28d6f132e8dde0f838af2dce"
 dependencies = [
  "burn-tensor",
  "half",
@@ -297,7 +304,8 @@ dependencies = [
 [[package]]
 name = "burn-tensor"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90436d5f70be24d538bb54f45f0724da80d737b4a8c5d07a0dabc2290156dd55"
 dependencies = [
  "derive-new",
  "half",
@@ -312,7 +320,8 @@ dependencies = [
 [[package]]
 name = "burn-tensor-testgen"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e208e3a9016679cd6b5217a141c4854b43babdaa5bc9671754cb03a5fe62201"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -322,7 +331,8 @@ dependencies = [
 [[package]]
 name = "burn-train"
 version = "0.8.0"
-source = "git+https://github.com/burn-rs/burn.git#9aca1837c205feff85b0df457fb8e2f7aa507134"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "913717358438caff0468ee61313318f8ab92da258c7a6250d23f52dd48329c35"
 dependencies = [
  "burn-core",
  "derive-new",
@@ -621,7 +631,7 @@ version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b2466559f260f48ad25fe6317b3c8dac77b5bdb5763ac7d9d6103530663bc90"
 dependencies = [
- "memchr 2.5.0",
+ "memchr",
 ]
 
 [[package]]
@@ -1036,7 +1046,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-task",
- "memchr 2.5.0",
+ "memchr",
  "pin-project-lite",
  "pin-utils",
  "slab",
@@ -1656,15 +1666,6 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "148fab2e51b4f1cfc66da2a7c32981d1d3c083a803978268bb11fe4b86925e7a"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
@@ -1790,31 +1791,12 @@ checksum = "a5b8c256fd9471521bcb84c3cdba98921497f1a331cbc15b8030fc63b82050ce"
 
 [[package]]
 name = "nom"
-version = "3.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05aec50c70fd288702bcd93284a8444607f3292dbdf2a30de5ea5dcdbe72287b"
-dependencies = [
- "memchr 1.0.2",
-]
-
-[[package]]
-name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
- "memchr 2.5.0",
+ "memchr",
  "minimal-lexical",
-]
-
-[[package]]
-name = "npy"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "428bbb4dd63ca4318d430b61e64e9ba7809d11525605905eaa88c73b01d91ed4"
-dependencies = [
- "byteorder",
- "nom 3.2.1",
 ]
 
 [[package]]
@@ -1902,7 +1884,7 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bda667d9f2b5051b8833f59f3bf748b28ef54f850f4fcb389a252aa383866d1"
 dependencies = [
- "memchr 2.5.0",
+ "memchr",
 ]
 
 [[package]]
@@ -2307,7 +2289,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2eae68fc220f7cf2532e4494aded17545fce192d59cd996e0fe7887f4ceb575"
 dependencies = [
  "aho-corasick 1.0.2",
- "memchr 2.5.0",
+ "memchr",
  "regex-automata",
  "regex-syntax 0.7.4",
 ]
@@ -2319,7 +2301,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39354c10dd07468c2e73926b23bb9c2caca74c5501e38a35da70406f1d923310"
 dependencies = [
  "aho-corasick 1.0.2",
- "memchr 2.5.0",
+ "memchr",
  "regex-syntax 0.7.4",
 ]
 
@@ -3413,7 +3395,6 @@ dependencies = [
  "burn",
  "burn-tch",
  "hound",
- "npy",
  "num-traits",
  "serde",
  "tokenizers",
