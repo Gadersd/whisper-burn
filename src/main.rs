@@ -40,38 +40,17 @@ fn load_audio_waveform<B: Backend>(filename: &str) -> hound::Result<(Vec<f32>, u
     return Ok( (floats, sample_rate) );
 }
 
-/*fn load_wave_audio_tensor<B: Backend>(filename: &str) -> hound::Result<(Tensor<B, 2>, usize)> {
-    let mut reader = hound::WavReader::open(filename)?;
-    let spec = reader.spec();
-
-    let duration = reader.duration() as usize;
-    let sample_rate = spec.sample_rate as usize;
-    let channels = spec.channels as usize;
-
-    type T = i16;
-
-    let floats = reader
-        .into_samples::<T>()
-        .map(|s| s.map(|s| s as f32 / T::MAX as f32))
-        .collect::<hound::Result<Vec<_>>>()?;
-
-    let waveform = Tensor::from_floats(
-        tensor::Data::new(floats, [duration, channels].into())
-    ).transpose();
-
-    return Ok( (waveform, sample_rate) );
-}*/
-
 fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, waveform: Vec<f32>, sample_rate: usize) -> token::Result<(String, Vec<usize>)> {
     let device = whisper.devices()[0].clone();
-    let mel_iter = waveform_to_mel_tensor(waveform, sample_rate, 30, device);
+    let mel_iter = waveform_to_mel_tensor(waveform, sample_rate, 7, device);
 
     let mut text = String::new();
     let mut tokens: Vec<usize> = Vec::new();
 
     for mel in mel_iter {
-        let prev_normal_tokens: Vec<_> = tokens.iter().rev().filter(|&&t| !bpe.is_special(t)).cloned().take(5).collect();
-        println!("Prev tokens: {:?}", prev_normal_tokens);
+        let mut prev_normal_tokens: Vec<_> = tokens.iter().rev().filter(|&&t| !bpe.is_special(t)).cloned().take(5).collect();
+        prev_normal_tokens.reverse();
+        //println!("Prev tokens: {:?} {}", prev_normal_tokens, bpe.decode(&prev_normal_tokens[..], false)?);
 
         let (new_text, new_tokens) = mels_to_text(whisper, bpe, mel, &prev_normal_tokens[..])?;
         text += &new_text;
@@ -83,11 +62,16 @@ fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, wavef
 
 fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_secs: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
     let n_samples_per_tensor = sample_rate * window_length_secs;
+    let chunk_overlap = sample_rate * 2;
     let iter_len = div_roundup(waveform.len(), n_samples_per_tensor);
 
     (0..iter_len).into_iter().map(move |i| {
-        let start = i * n_samples_per_tensor;
-        let end = (start + n_samples_per_tensor).min(waveform.len());
+        let start = if i > 0 {
+            i * n_samples_per_tensor //- chunk_overlap // overlap the chunks
+        } else {
+            i * n_samples_per_tensor
+        };
+        let end = ((i + 1) * n_samples_per_tensor ).min(waveform.len());
 
         let slice = &waveform[start..end];
 
@@ -113,19 +97,23 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
     if n_ctx > n_ctx_max {
         println!("Audio exceeds maximum length. Audio will be clipped.");
     }
-    let mels = mels.slice([0..1, 0..n_mel, 0..(n_ctx.min(n_ctx_max))]);
+    
+    let padding = 10;
+    let mels = Tensor::cat(vec![mels.slice([0..1, 0..n_mel, 0..(n_ctx).min(n_ctx_max - padding)]), 
+        Tensor::zeros_device([1, n_mel, padding ], &device)], 2);
 
     let start_token = bpe.special_token(SpecialToken::StartofTranscript).unwrap();
     let transcription_token = bpe.special_token(SpecialToken::Transcribe).unwrap();
     let start_of_prev_token = bpe.special_token(SpecialToken::StartofPrev).unwrap();
-    let last_timestamp_token = bpe.special_token(SpecialToken::Timestamp(30.0)).unwrap();
+    let first_timestamp_token = bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap();
     let end_token = bpe.special_token(SpecialToken::EndofText).unwrap();
 
-    let mut tokens: Vec<usize> = iter::once(start_of_prev_token)
-        .chain(prev_normal_tokens.into_iter().cloned())
-        .chain(iter::once(start_token))
+    /*let mut tokens: Vec<usize> = iter::once(start_token)
         .chain(iter::once(transcription_token))
-        .collect();
+        .chain(prev_normal_tokens.into_iter().cloned())
+        .chain(iter::once(bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap()))
+        .collect();*/
+    let mut tokens = vec![start_token, transcription_token, first_timestamp_token];
 
     let encoder_output = whisper.forward_encoder(mels);
 
@@ -140,14 +128,17 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
         let [n_batch, n_token, n_dict] = out.dims();
         let last_row: Tensor<B, 1> = out.slice([0..1, (n_token - 1)..n_token]).flatten(0, 2);
 
-        let token_id = last_row.argmax(0).into_scalar().to_usize().unwrap();
-        if token_id == end_token || token_id == last_timestamp_token {
-            break;
-        }
+        let token_id = last_row.clone().argmax(0).into_scalar().to_usize().unwrap();
+        let token_logit = last_row.clone().slice([token_id..(token_id + 1)]).into_scalar().to_f64().unwrap();
+        let eot_logit = last_row.slice([end_token..(end_token + 1)]).into_scalar().to_f64().unwrap();
 
         tokens.push(token_id);
-
         println!("{}", bpe.decode(&[token_id], false)?);
+
+        // if the ratio of probabilites is great enough then stop
+        if (eot_logit - token_logit).exp() > 0.9 {
+            break;
+        }
     }
 
     let text = bpe.decode(&tokens[..], true)?;
@@ -158,54 +149,6 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
 use num_traits::ToPrimitive;
 use whisper::audio::prep_audio;
 use whisper::token::{Gpt2Tokenizer, SpecialToken};
-
-/*fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, waveform: Tensor<B, 2>, sample_rate: usize, max_tokens: usize) -> token::Result<String> {
-    let device = waveform.device();
-    
-    let bpe = Gpt2Tokenizer::new()?;
-
-    let n_ctx_max = whisper.encoder_ctx_size();
-    let mels = prep_audio(waveform, sample_rate as f64);
-    let [n_channel, n_mel, n_ctx] = mels.dims();
-    if n_ctx > n_ctx_max {
-        println!("Audio exceeds maximum length. Audio will be clipped.");
-    }
-    let mels = mels.slice([0..1, 0..n_mel, 0..(n_ctx.min(n_ctx_max))]);
-
-    let start_token = bpe.special_token(SpecialToken::StartofTranscript).unwrap();
-    let end_token = bpe.special_token(SpecialToken::EndofText).unwrap();
-
-    let mut tokens: Vec<usize> = vec![start_token];
-    let mut text = String::new();
-
-    let encoder_output = whisper.forward_encoder(mels);
-
-    for i in 0..max_tokens {
-        let token_tensor = Tensor::from_ints(
-                Data::from_usize(Data::new(tokens.clone(), [tokens.len()].into()))
-            ).unsqueeze::<2>()
-             .to_device(&device);
-
-        let out = whisper.forward_decoder(token_tensor, encoder_output.clone());
-
-        let [n_batch, n_token, n_dict] = out.dims();
-        let last_row: Tensor<B, 1> = out.slice([0..1, (n_token - 1)..n_token]).flatten(0, 2);
-
-        let token_id = last_row.argmax(0).into_scalar().to_usize().unwrap();
-        if token_id == end_token {
-            break;
-        }
-
-        tokens.push(token_id);
-
-        let token_text = bpe.decode(&[token_id]).unwrap();
-        println!("{token_text}");
-
-        text += &token_text;
-    }
-
-    return Ok(text);
-}*/
 
 use burn::record::{Recorder, DefaultRecorder, RecorderError};
 
@@ -231,6 +174,7 @@ fn main() {
     let wav_file = &args[1];
     let model_name = &args[2];
 
+    println!("Loading waveform...");
     let (waveform, sample_rate) = match load_audio_waveform::<Backend>(wav_file) {
         Ok( (w, sr) ) => (w, sr), 
         Err(e) => {
@@ -255,6 +199,7 @@ fn main() {
         }
     };
 
+    println!("Loading model...");
     let whisper: Whisper<Backend> = match load_whisper_model_file(&whisper_config, model_name) {
         Ok(whisper_model) => whisper_model,
         Err(e) => {
