@@ -47,31 +47,30 @@ fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, wavef
     let mut text = String::new();
     let mut tokens: Vec<usize> = Vec::new();
 
-    for mel in mel_iter {
+    for (i, mel) in mel_iter.enumerate() {
         let mut prev_normal_tokens: Vec<_> = tokens.iter().rev().filter(|&&t| !bpe.is_special(t)).cloned().take(5).collect();
         prev_normal_tokens.reverse();
         //println!("Prev tokens: {:?} {}", prev_normal_tokens, bpe.decode(&prev_normal_tokens[..], false)?);
 
         let (new_text, new_tokens) = mels_to_text(whisper, bpe, mel, &prev_normal_tokens[..])?;
 
-        if let Some( (prev_index, curr_index) ) = find_chunk_overlap(&tokens[..], &new_tokens[..], 10) {
+        if let Some( (prev_index, curr_index) ) = find_chunk_overlap(&tokens[..], &new_tokens[..], 15, 4) {
             tokens.truncate(prev_index);
             tokens.extend(&new_tokens[curr_index..]);
         } else {
             tokens.extend(new_tokens);
         }
 
-        println!("{}", bpe.decode(&tokens[..], true)?);
+        text = bpe.decode(&tokens[..], true)?;
+        println!("Chunk {}: {}\n", i, text);
 
-        text += &new_text;
+        //text += &new_text;
     }
-
-    let text = bpe.decode(&tokens[..], true)?;
 
     Ok( (text, tokens) )
 }
 
-fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offsets: usize) -> Option<(usize, usize)> {
+fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offsets: usize, min_n_overlaps: usize) -> Option<(usize, usize)> {
     let mut max_overlap = 0;
     let mut max_overlap_indices = (0, 0);
     let n_offsets = prev_tokens.len()
@@ -96,7 +95,7 @@ fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offset
         }
     }
 
-    if max_overlap >= 1 {
+    if max_overlap >= min_n_overlaps {
         Some(max_overlap_indices)
     } else {
         None
@@ -109,15 +108,12 @@ fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offset
 fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_secs: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
     let n_samples_per_tensor = sample_rate * window_length_secs;
     let chunk_overlap = sample_rate * 2;
-    let iter_len = div_roundup(waveform.len(), n_samples_per_tensor);
+    let shift = n_samples_per_tensor - chunk_overlap;
+    let iter_len = (waveform.len() - n_samples_per_tensor) / shift + 1;
 
     (0..iter_len).into_iter().map(move |i| {
-        let start = if i > 0 {
-            i * n_samples_per_tensor //- chunk_overlap // overlap the chunks
-        } else {
-            i * n_samples_per_tensor
-        };
-        let end = ((i + 1) * n_samples_per_tensor ).min(waveform.len());
+        let start = i * shift;
+        let end = ( start + n_samples_per_tensor ).min(waveform.len());
 
         let slice = &waveform[start..end];
 
@@ -131,21 +127,20 @@ fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, wi
     })
 }
 
-fn div_roundup(x: usize, y: usize) -> usize {
-    (x + y - 1) / y
-}
-
 fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Tensor<B, 3>, prev_normal_tokens: &[usize]) -> token::Result<(String, Vec<usize>)> {
     let device = mels.device();
 
-    let n_ctx_max = whisper.encoder_ctx_size();
+    let n_ctx_max_encoder = whisper.encoder_ctx_size();
+    let n_ctx_max_decoder = whisper.decoder_ctx_size();
+
     let [n_channel, n_mel, n_ctx] = mels.dims();
-    if n_ctx > n_ctx_max {
+    if n_ctx > n_ctx_max_encoder {
         println!("Audio exceeds maximum length. Audio will be clipped.");
     }
     
+    // the zero padding helps whisper determine end of text
     let padding = 10;
-    let mels = Tensor::cat(vec![mels.slice([0..1, 0..n_mel, 0..(n_ctx).min(n_ctx_max - padding)]), 
+    let mels = Tensor::cat(vec![mels.slice([0..1, 0..n_mel, 0..(n_ctx).min(n_ctx_max_encoder - padding)]), 
         Tensor::zeros_device([1, n_mel, padding ], &device)], 2);
 
     let start_token = bpe.special_token(SpecialToken::StartofTranscript).unwrap();
@@ -154,9 +149,11 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
     let first_timestamp_token = bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap();
     let end_token = bpe.special_token(SpecialToken::EndofText).unwrap();
 
-    /*let mut tokens: Vec<usize> = iter::once(start_token)
-        .chain(iter::once(transcription_token))
+    // including the prev tokens causes whisper to hallucinate, repeating itself and failing to determine end of text
+    /*let mut tokens: Vec<usize> = iter::once(start_of_prev_token)
         .chain(prev_normal_tokens.into_iter().cloned())
+        .chain(iter::once(start_token))
+        .chain(iter::once(transcription_token))
         .chain(iter::once(bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap()))
         .collect();*/
     let mut tokens = vec![start_token, transcription_token, first_timestamp_token];
@@ -164,6 +161,11 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
     let encoder_output = whisper.forward_encoder(mels);
 
     loop {
+        if tokens.len() >= n_ctx_max_decoder {
+            tokens.push(end_token);
+            break;
+        }
+
         let token_tensor = Tensor::from_ints(
                 Data::from_usize(Data::new(tokens.clone(), [tokens.len()].into()))
             ).unsqueeze::<2>()
@@ -179,10 +181,10 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
         let eot_logit = last_row.slice([end_token..(end_token + 1)]).into_scalar().to_f64().unwrap();
 
         tokens.push(token_id);
-        println!("{}", bpe.decode(&[token_id], false)?);
+        //println!("{}", bpe.decode(&[token_id], false)?);
 
-        // if the ratio of probabilites is great enough then stop
-        if (eot_logit - token_logit).exp() > 0.9 {
+        // if end of text confidence is great enough then stop
+        if (eot_logit - token_logit).exp() > 0.8 {
             break;
         }
     }
