@@ -62,6 +62,10 @@ impl<B: Backend> Whisper<B> {
     pub fn encoder_ctx_size(&self) -> usize {
         self.encoder.ctx_size()
     }
+
+    pub fn decoder_ctx_size(&self) -> usize {
+        self.decoder.ctx_size()
+    }
 }
 
 #[derive(Config, Debug)]
@@ -128,6 +132,10 @@ impl<B: Backend> TextDecoder<B> {
 
         let x = self.ln.forward(x);
         return x.matmul(self.token_embedding.val().transpose().unsqueeze::<3>());
+    }
+
+    fn ctx_size(&self) -> usize {
+        self.n_text_ctx
     }
 }
 
