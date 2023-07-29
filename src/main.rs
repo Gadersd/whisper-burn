@@ -53,12 +53,58 @@ fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, wavef
         //println!("Prev tokens: {:?} {}", prev_normal_tokens, bpe.decode(&prev_normal_tokens[..], false)?);
 
         let (new_text, new_tokens) = mels_to_text(whisper, bpe, mel, &prev_normal_tokens[..])?;
+
+        if let Some( (prev_index, curr_index) ) = find_chunk_overlap(&tokens[..], &new_tokens[..], 10) {
+            tokens.truncate(prev_index);
+            tokens.extend(&new_tokens[curr_index..]);
+        } else {
+            tokens.extend(new_tokens);
+        }
+
+        println!("{}", bpe.decode(&tokens[..], true)?);
+
         text += &new_text;
-        tokens.extend(new_tokens);
     }
+
+    let text = bpe.decode(&tokens[..], true)?;
 
     Ok( (text, tokens) )
 }
+
+fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offsets: usize) -> Option<(usize, usize)> {
+    let mut max_overlap = 0;
+    let mut max_overlap_indices = (0, 0);
+    let n_offsets = prev_tokens.len()
+        .min(curr_tokens.len())
+        .min(max_n_offsets);
+    
+    for offset in 0..n_offsets {
+        let prev_start_index = prev_tokens.len() - 1 - offset;
+        let mut overlap_iter = prev_tokens.iter()
+            .skip(prev_start_index)
+            .zip(curr_tokens.iter())
+            .enumerate()
+            .filter(|(_, (&old, &new))| old == new);
+
+        let n_overlap = overlap_iter.clone().count();
+        if n_overlap > max_overlap {
+            max_overlap = n_overlap;
+
+            let curr_overlap_index = overlap_iter.next().unwrap().0;
+            let prev_overlap_index = prev_start_index + curr_overlap_index;
+            max_overlap_indices = (prev_overlap_index, curr_overlap_index)
+        }
+    }
+
+    if max_overlap >= 1 {
+        Some(max_overlap_indices)
+    } else {
+        None
+    }
+}
+
+
+
 
 fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_secs: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
     let n_samples_per_tensor = sample_rate * window_length_secs;
