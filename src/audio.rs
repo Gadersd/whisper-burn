@@ -8,12 +8,37 @@ use burn::{
 
 use crate::helper::*;
 
-pub fn prep_audio<B: Backend>(waveform: Tensor<B, 2>, sample_rate: f64) -> Tensor<B, 3> {
-    const N_FFT: usize = 400;
-    const HOP_LENGTH: usize = 160;
-    const N_MELS: usize = 80;
-    const WINDOW_LENGTH: usize = N_FFT;
 
+const N_FFT: usize = 400;
+const HOP_LENGTH: usize = 160;
+const N_MELS: usize = 80;
+const WINDOW_LENGTH: usize = N_FFT;
+
+/// Returns the maximum number of waveform samples that can be submitted to `prep_audio`
+/// without receiving more than `n_frame_max` frames.
+pub fn max_waveform_samples(n_frame_max: usize) -> usize {
+    // number of waveform samples must be less than this
+    let n_samples_max = HOP_LENGTH * (n_frame_max + 1) + is_odd(N_FFT) as usize;
+
+    n_samples_max - 1
+}
+
+fn is_odd(x: usize) -> bool {
+    if x % 2 == 0 {
+        false
+    } else {
+        true
+    }
+}
+
+/// Transform an input waveform into a format interpretable by Whisper.
+/// With a waveform size of (n_batch, n_samples) the output will be of size (n_batch, n_mels, n_frame)
+/// where n_mels = 80, 
+/// n_frame = int( ( n_samples_padded - n_fft ) / hop_length ), 
+/// n_samples_padded = if n_fft is even: n_samples + n_fft else: n_samples + n_fft - 1, 
+/// n_fft = 400, 
+/// hop_length = 160.
+pub fn prep_audio<B: Backend>(waveform: Tensor<B, 2>, sample_rate: f64) -> Tensor<B, 3> {
     let device = waveform.device();
 
     let window = hann_window_device(WINDOW_LENGTH, &device);
@@ -221,7 +246,10 @@ pub fn hann_window_device<B: Backend>(window_length: usize, device: &B::Device) 
 }
 
 
-
+/// Short time Fourier transform that takes a waveform input of size (n_batch, n_sample) and returns (real_part, imaginary_part) frequency spectrums.
+/// The size of each returned tensor is (n_batch, n_freq, n_frame) 
+/// where n_freq = int(n_fft / 2 + 1), n_frame = int( ( n_sample_padded - n_fft ) / hop_length ) + 1,
+/// n_sample_padded = if n_fft is even: n_sample + n_fft else: n_sample + n_fft - 1.
 pub fn stfft<B: Backend>(input: Tensor<B, 2>, n_fft: usize, hop_length: usize, window: Tensor<B, 1>) -> (Tensor<B, 3>, Tensor<B, 3>) {
     let [n_batch, orig_input_size] = input.dims();
 

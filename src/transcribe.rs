@@ -1,7 +1,7 @@
 use crate::model::*;
 use crate::helper::*;
 use crate::token::{self, *};
-use crate::audio::prep_audio;
+use crate::audio::{prep_audio, max_waveform_samples};
 
 use num_traits::ToPrimitive;
 
@@ -20,7 +20,12 @@ use burn::{
 
 pub fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, waveform: Vec<f32>, sample_rate: usize) -> token::Result<(String, Vec<usize>)> {
     let device = whisper.devices()[0].clone();
-    let mel_iter = waveform_to_mel_tensor(waveform, sample_rate, 7, device);
+
+    let n_ctx_max_encoder = whisper.encoder_ctx_size();
+    let padding = 10;
+    let n_waveform_samples_per_window = max_waveform_samples(n_ctx_max_encoder - padding);
+
+    let mel_iter = waveform_to_mel_tensor(waveform, sample_rate, n_waveform_samples_per_window, device);
 
     let mut text = String::new();
     let mut tokens: Vec<usize> = Vec::new();
@@ -30,9 +35,9 @@ pub fn waveform_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, w
         prev_normal_tokens.reverse();
         //println!("Prev tokens: {:?} {}", prev_normal_tokens, bpe.decode(&prev_normal_tokens[..], false)?);
 
-        let (new_text, new_tokens) = mels_to_text(whisper, bpe, mel, &prev_normal_tokens[..])?;
+        let (new_text, new_tokens) = mels_to_text(whisper, bpe, mel, &prev_normal_tokens[..], padding)?;
 
-        if let Some( (prev_index, curr_index) ) = find_chunk_overlap(&tokens[..], &new_tokens[..], 15, 4) {
+        if let Some( (prev_index, curr_index) ) = find_chunk_overlap(&tokens[..], &new_tokens[..], 40, 3) {
             tokens.truncate(prev_index);
             tokens.extend(&new_tokens[curr_index..]);
         } else {
@@ -83,9 +88,9 @@ fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offset
 
 
 
-fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_secs: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
-    let n_samples_per_tensor = sample_rate * window_length_secs;
-    let chunk_overlap = sample_rate * 2;
+fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_samples: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
+    let n_samples_per_tensor = window_length_samples;
+    let chunk_overlap = sample_rate * 3;
     let shift = n_samples_per_tensor - chunk_overlap;
     let iter_len = (waveform.len() - n_samples_per_tensor) / shift + 1;
 
@@ -105,19 +110,18 @@ fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, wi
     })
 }
 
-fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Tensor<B, 3>, prev_normal_tokens: &[usize]) -> token::Result<(String, Vec<usize>)> {
+fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Tensor<B, 3>, prev_normal_tokens: &[usize], padding: usize) -> token::Result<(String, Vec<usize>)> {
     let device = mels.device();
 
     let n_ctx_max_encoder = whisper.encoder_ctx_size();
     let n_ctx_max_decoder = whisper.decoder_ctx_size();
 
     let [n_channel, n_mel, n_ctx] = mels.dims();
-    if n_ctx > n_ctx_max_encoder {
-        println!("Audio exceeds maximum length. Audio will be clipped.");
+    if n_ctx + padding > n_ctx_max_encoder {
+        println!("Audio has length of {} which exceeds maximum length {}. It will be clipped.", n_ctx + padding, n_ctx_max_encoder);
     }
     
     // the zero padding helps whisper determine end of text
-    let padding = 10;
     let mels = Tensor::cat(vec![mels.slice([0..1, 0..n_mel, 0..(n_ctx).min(n_ctx_max_encoder - padding)]), 
         Tensor::zeros_device([1, n_mel, padding ], &device)], 2);
 
