@@ -185,6 +185,19 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
 
         // if end of text confidence is great enough then stop
         if (eot_logit - token_logit).exp() > 0.8 {
+            if token_id != end_token {
+                tokens.push(end_token);
+            }
+            break;
+        }
+
+        let repeat_window_size = 2;
+        let min_n_repeats = 4; // three times to charm, four to scorn
+        if let Some(index_of_first_repeat) = find_repeated_tokens_index(&tokens[..], repeat_window_size, min_n_repeats) {
+            let end = index_of_first_repeat + repeat_window_size;
+
+            tokens.truncate(end);
+            tokens.push(end_token);
             break;
         }
     }
@@ -192,6 +205,32 @@ fn mels_to_text<B: Backend>(whisper: &Whisper<B>, bpe: &Gpt2Tokenizer, mels: Ten
     let text = bpe.decode(&tokens[..], true)?;
 
     return Ok( (text, tokens) );
+}
+
+fn find_repeated_tokens_index(tokens: &[usize], window_size: usize, min_repeat_count: usize) -> Option<usize> {
+    // the last window isn't checked or overlapped with itself
+    if 2 * window_size > tokens.len() {
+        return None;
+    }
+
+    let last_index = tokens.len() - window_size;
+    let last_window = &tokens[last_index..];
+
+    let sliding_windows = (0..=(last_index - window_size))
+        .into_iter()
+        .map(|i| &tokens[i..(i + window_size)])
+        .enumerate();
+
+    let mut repeats = sliding_windows
+        .filter(|(_, window)| window == &last_window);
+
+    let n_repeats = repeats.clone().count();
+    if n_repeats >= min_repeat_count {
+        let first_repeat_index = repeats.next().unwrap().0;
+        return Some(first_repeat_index);
+    } else {
+        return None
+    };
 }
 
 use num_traits::ToPrimitive;
