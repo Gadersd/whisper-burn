@@ -89,10 +89,10 @@ fn find_chunk_overlap(prev_tokens: &[usize], curr_tokens: &[usize], max_n_offset
 
 
 fn waveform_to_mel_tensor<B: Backend>(waveform: Vec<f32>, sample_rate: usize, window_length_samples: usize, device: B::Device) -> impl Iterator<Item=Tensor<B, 3>> {
-    let n_samples_per_tensor = window_length_samples;
     let chunk_overlap = sample_rate * 3;
-    let shift = n_samples_per_tensor - chunk_overlap;
-    let iter_len = (waveform.len() - n_samples_per_tensor) / shift + 1;
+    let n_samples_per_tensor = window_length_samples;
+    let shift = n_samples_per_tensor.saturating_sub(chunk_overlap).max(1);
+    let iter_len = waveform.len().saturating_sub(n_samples_per_tensor) / shift + 1;
 
     (0..iter_len).into_iter().map(move |i| {
         let start = i * shift;
