@@ -21,22 +21,29 @@ use burn::{
     },
 };
 
-use hound;
+use hound::{self, SampleFormat};
 
 fn load_audio_waveform<B: Backend>(filename: &str) -> hound::Result<(Vec<f32>, usize)> {
     let mut reader = hound::WavReader::open(filename)?;
     let spec = reader.spec();
 
     let duration = reader.duration() as usize;
-    let sample_rate = spec.sample_rate as usize;
     let channels = spec.channels as usize;
+    let sample_rate = spec.sample_rate as usize;
+    let bits_per_sample = spec.bits_per_sample;
+    let sample_format = spec.sample_format;
 
-    type T = i16;
+    let max_int_val = 2_u32.pow(spec.bits_per_sample as u32 - 1) - 1;
 
-    let floats = reader
-        .into_samples::<T>()
-        .map(|s| s.map(|s| s as f32 / T::MAX as f32))
-        .collect::<hound::Result<_>>()?;
+    let floats = match sample_format {
+        SampleFormat::Float => reader
+            .into_samples::<f32>()
+            .collect::<hound::Result<_>>()?, 
+        SampleFormat::Int => reader
+            .into_samples::<i32>()
+            .map(|s| s.map(|s| s as f32 / max_int_val as f32))
+            .collect::<hound::Result<_>>()?, 
+    };
 
     return Ok( (floats, sample_rate) );
 }
