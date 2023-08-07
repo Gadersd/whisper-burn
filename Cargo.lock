@@ -240,9 +240,8 @@ checksum = "a3e2c3daef883ecc1b5d58c15adae93470a91d425f3532ba1695849656af3fc1"
 
 [[package]]
 name = "burn"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87940584409e18d053f2d0cee015993f55588c8cd0a3216b189cc4b8d30571ee"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "burn-core",
  "burn-train",
@@ -250,9 +249,8 @@ dependencies = [
 
 [[package]]
 name = "burn-autodiff"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2513e7b559fd1042204a0bf2a4aeedd1f89d968d5474e0643fb1bfff60501114"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "burn-common",
  "burn-tensor",
@@ -263,9 +261,8 @@ dependencies = [
 
 [[package]]
 name = "burn-common"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7af5b6e414f20bd4f718585a1e4fcd5b03347edad65ede3e6f4bb26c4a1a30a"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "const-random",
  "rand",
@@ -275,9 +272,8 @@ dependencies = [
 
 [[package]]
 name = "burn-core"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce665fd8eeb9f69ef68de54853aeb254e0597e1cf52444ddb78d8a2a5ca26234"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "bincode",
  "burn-autodiff",
@@ -300,9 +296,8 @@ dependencies = [
 
 [[package]]
 name = "burn-dataset"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a026d10e44c5f375bfd113c865f305449ac5cda987cced04a461db79cf9a291"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "csv",
  "derive-new",
@@ -326,9 +321,8 @@ dependencies = [
 
 [[package]]
 name = "burn-derive"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86b9170bf2cf6e1375db8cc5f7222ed9fd7c172d82450a5d53fcff3b2f3e694a"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -337,9 +331,8 @@ dependencies = [
 
 [[package]]
 name = "burn-tensor"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90436d5f70be24d538bb54f45f0724da80d737b4a8c5d07a0dabc2290156dd55"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "derive-new",
  "half",
@@ -353,9 +346,8 @@ dependencies = [
 
 [[package]]
 name = "burn-tensor-testgen"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e208e3a9016679cd6b5217a141c4854b43babdaa5bc9671754cb03a5fe62201"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -364,9 +356,8 @@ dependencies = [
 
 [[package]]
 name = "burn-train"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "913717358438caff0468ee61313318f8ab92da258c7a6250d23f52dd48329c35"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "burn-core",
  "derive-new",
@@ -382,9 +373,8 @@ dependencies = [
 
 [[package]]
 name = "burn-wgpu"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0819ebf95d1a74be121074d5d5f1c4db5882e504ca58f37982649ebe7335a60"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
 dependencies = [
  "burn-common",
  "burn-tensor",
@@ -2752,9 +2742,9 @@ checksum = "1ad4cc8da4ef723ed60bced201181d83791ad433213d8c24efffda1eec85d741"
 
 [[package]]
 name = "sanitize-filename"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08c502bdb638f1396509467cb0580ef3b29aa2a45c5d43e5d84928241280296c"
+checksum = "2ed72fbaf78e6f2d41744923916966c4fbe3d7c74e3037a8ee482f1115572603"
 dependencies = [
  "lazy_static",
  "regex",
