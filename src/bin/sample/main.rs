@@ -62,7 +62,7 @@ fn load_whisper_model_file<B: Backend>(config: &WhisperConfig, filename: &str) -
     .map(|record| config.init().load_record(record))
 }
 
-use std::{env, process};
+use std::{env, process, fs};
 
 fn main() {
     type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
@@ -70,13 +70,14 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 3 {
-        eprintln!("Usage: {} <audio file> <model name>", args[0]);
+    if args.len() < 4 {
+        eprintln!("Usage: {} <model name> <audio file> <transcription file>", args[0]);
         process::exit(1);
     }
 
-    let wav_file = &args[1];
-    let model_name = &args[2];
+    let wav_file = &args[2];
+    let text_file = &args[3];
+    let model_name = &args[1];
 
     println!("Loading waveform...");
     let (waveform, sample_rate) = match load_audio_waveform::<Backend>(wav_file) {
@@ -122,5 +123,10 @@ fn main() {
         }
     };
 
-    println!("Transcribed text: {}", text);
+    fs::write(text_file, text).unwrap_or_else(|e| {
+        eprintln!("Error writing transcription file: {}", e);
+        process::exit(1);
+    });
+
+    println!("Transcription finished.");
 }
