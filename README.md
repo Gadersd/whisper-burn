@@ -8,7 +8,18 @@ This project is licensed under the terms of the MIT license.
 
 ## Model Files
 
-All the Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
+The OpenAI Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
+
+If you have a custom fine-tuned model you can easily convert it to burn's format. Here is an example of converting OpenAI's tiny en model.
+
+```
+cd python
+wget https://openaipublic.azureedge.net/main/whisper/models/d3dd57d32accea0b295c96e26691aa14d8822fac7d9d27d5dc00b4ca2826dd03/tiny.en.pt
+python3 dump.py tiny.en.pt tiny_en
+mv tiny_en ../
+cd ../
+cargo run --release --bin convert tiny_en
+```
 
 #### 1. Clone the Repository
 
@@ -38,7 +49,7 @@ wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.mp
 Once you've finished setting up, you can run the application using this command:
 
 ```
-cargo run --release audio.wav tiny_en
+cargo run --release --bin sample audio.wav tiny_en
 ```
 
 This usage assumes that "audio.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.

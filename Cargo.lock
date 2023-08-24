@@ -56,7 +56,7 @@ version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cc936419f96fa211c1b9166887b38e5e40b19958e5b895be7c1f93adec7071ac"
 dependencies = [
- "memchr",
+ "memchr 2.5.0",
 ]
 
 [[package]]
@@ -65,7 +65,7 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43f6cb1bf222025340178f382c426f13757b2960e89779dfcb319c32542a5a41"
 dependencies = [
- "memchr",
+ "memchr 2.5.0",
 ]
 
 [[package]]
@@ -241,7 +241,7 @@ checksum = "a3e2c3daef883ecc1b5d58c15adae93470a91d425f3532ba1695849656af3fc1"
 [[package]]
 name = "burn"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "burn-core",
  "burn-train",
@@ -250,7 +250,7 @@ dependencies = [
 [[package]]
 name = "burn-autodiff"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "burn-common",
  "burn-tensor",
@@ -262,7 +262,7 @@ dependencies = [
 [[package]]
 name = "burn-common"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "const-random",
  "rand",
@@ -273,7 +273,7 @@ dependencies = [
 [[package]]
 name = "burn-core"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "bincode",
  "burn-autodiff",
@@ -297,7 +297,7 @@ dependencies = [
 [[package]]
 name = "burn-dataset"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "csv",
  "derive-new",
@@ -322,7 +322,7 @@ dependencies = [
 [[package]]
 name = "burn-derive"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -330,10 +330,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "burn-ndarray"
+version = "0.9.0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
+dependencies = [
+ "burn-autodiff",
+ "burn-common",
+ "burn-tensor",
+ "derive-new",
+ "libm",
+ "matrixmultiply",
+ "ndarray",
+ "num-traits",
+ "rand",
+ "rayon",
+ "spin",
+]
+
+[[package]]
 name = "burn-tensor"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
+ "burn-tensor-testgen",
  "derive-new",
  "half",
  "hashbrown 0.14.0",
@@ -347,7 +366,7 @@ dependencies = [
 [[package]]
 name = "burn-tensor-testgen"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -357,7 +376,7 @@ dependencies = [
 [[package]]
 name = "burn-train"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "burn-core",
  "derive-new",
@@ -367,6 +386,8 @@ dependencies = [
  "nvml-wrapper",
  "rgb",
  "serde",
+ "sysinfo",
+ "systemstat",
  "terminal_size",
  "textplots",
 ]
@@ -374,7 +395,7 @@ dependencies = [
 [[package]]
 name = "burn-wgpu"
 version = "0.9.0"
-source = "git+https://github.com/burn-rs/burn.git#ed255c5561b85876cf02cbc4d48f35e1f0d29ac0"
+source = "git+https://github.com/burn-rs/burn.git#b263faebc3693ffe459ed5d0768cb005ac9a5c9e"
 dependencies = [
  "burn-common",
  "burn-tensor",
@@ -408,6 +429,12 @@ name = "bytes"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
+
+[[package]]
+name = "bytesize"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3e368af43e418a04d52505cf3dbc23dda4e3407ae2fa99fd0e4f308ce546acc"
 
 [[package]]
 name = "bzip2"
@@ -703,7 +730,7 @@ version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b2466559f260f48ad25fe6317b3c8dac77b5bdb5763ac7d9d6103530663bc90"
 dependencies = [
- "memchr",
+ "memchr 2.5.0",
 ]
 
 [[package]]
@@ -998,6 +1025,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
+name = "faster-hex"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9042d281a5eec0f2387f8c3ea6c4514e2cf2732c90a85aaf383b761ee3b290d"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1167,7 +1203,7 @@ dependencies = [
  "futures-core",
  "futures-io",
  "futures-task",
- "memchr",
+ "memchr 2.5.0",
  "pin-project-lite",
  "pin-utils",
  "slab",
@@ -1214,9 +1250,9 @@ checksum = "b6c80984affa11d98d1b88b66ac8853f143217b399d3c74116778ff8fdb4ed2e"
 
 [[package]]
 name = "gix-features"
-version = "0.32.1"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882695cccf38da4c3cc7ee687bdb412cf25e37932d7f8f2c306112ea712449f1"
+checksum = "7f77decb545f63a52852578ef5f66ecd71017ffc1983d551d5fa2328d6d9817f"
 dependencies = [
  "gix-hash",
  "gix-trace",
@@ -1225,28 +1261,28 @@ dependencies = [
 
 [[package]]
 name = "gix-fs"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d5b6e9d34a2c61ea4a02bbca94c409ab6dbbca1348cbb67298cd7fed8758761"
+checksum = "53d5089f3338647776733a75a800a664ab046f56f21c515fa4722e395f877ef8"
 dependencies = [
  "gix-features",
 ]
 
 [[package]]
 name = "gix-hash"
-version = "0.11.4"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b422ff2ad9a0628baaad6da468cf05385bf3f5ab495ad5a33cce99b9f41092f"
+checksum = "7d4796bac3aaf0c2f8bea152ca924ae3bdc5f135caefe6431116bcd67e98eab9"
 dependencies = [
- "hex",
+ "faster-hex",
  "thiserror",
 ]
 
 [[package]]
 name = "gix-tempfile"
-version = "7.0.2"
+version = "8.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa28d567848cec8fdd77d36ad4f5f78ecfaba7d78f647d4f63c8ae1a2cec7243"
+checksum = "cea558d3daf3b1d0001052b12218c66c8f84788852791333b633d7eeb6999db1"
 dependencies = [
  "dashmap",
  "gix-fs",
@@ -1447,12 +1483,6 @@ name = "hermit-abi"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "443144c8cdadd93ebf52ddb4056d257f5b52c04d3c804e657d19eb73fc33668b"
-
-[[package]]
-name = "hex"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
 name = "hexf-parse"
@@ -1893,6 +1923,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "matrixmultiply"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "090126dc04f95dc0d1c1c91f61bdd474b3930ca064c1edc8a849da2c6cbe1e77"
+dependencies = [
+ "autocfg",
+ "num_cpus",
+ "once_cell",
+ "rawpointer",
+ "thread-tree",
+]
+
+[[package]]
+name = "memchr"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "148fab2e51b4f1cfc66da2a7c32981d1d3c083a803978268bb11fe4b86925e7a"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2034,6 +2086,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "ndarray"
+version = "0.15.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
+dependencies = [
+ "matrixmultiply",
+ "num-complex",
+ "num-integer",
+ "num-traits",
+ "rawpointer",
+ "rayon",
+]
+
+[[package]]
 name = "nom"
 version = "1.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2041,12 +2107,49 @@ checksum = "a5b8c256fd9471521bcb84c3cdba98921497f1a331cbc15b8030fc63b82050ce"
 
 [[package]]
 name = "nom"
+version = "3.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05aec50c70fd288702bcd93284a8444607f3292dbdf2a30de5ea5dcdbe72287b"
+dependencies = [
+ "memchr 1.0.2",
+]
+
+[[package]]
+name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
- "memchr",
+ "memchr 2.5.0",
  "minimal-lexical",
+]
+
+[[package]]
+name = "npy"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "428bbb4dd63ca4318d430b61e64e9ba7809d11525605905eaa88c73b01d91ed4"
+dependencies = [
+ "byteorder",
+ "nom 3.2.1",
+]
+
+[[package]]
+name = "ntapi"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8a3895c6391c39d7fe7ebc444a87eb2991b2a0bc718fdabd071eec617fc68e4"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
+name = "num-complex"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ba157ca0885411de85d6ca030ba7e2a83a28636056c7c699b07c8b6f7383214"
+dependencies = [
+ "num-traits",
 ]
 
 [[package]]
@@ -2144,7 +2247,7 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8bda667d9f2b5051b8833f59f3bf748b28ef54f850f4fcb389a252aa383866d1"
 dependencies = [
- "memchr",
+ "memchr 2.5.0",
 ]
 
 [[package]]
@@ -2499,6 +2602,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2ff9a1f06a88b01621b7ae906ef0211290d1c8a168a15542486a8f61c0833b9"
 
 [[package]]
+name = "rawpointer"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
+
+[[package]]
 name = "rayon"
 version = "1.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2567,7 +2676,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2eae68fc220f7cf2532e4494aded17545fce192d59cd996e0fe7887f4ceb575"
 dependencies = [
  "aho-corasick 1.0.2",
- "memchr",
+ "memchr 2.5.0",
  "regex-automata",
  "regex-syntax 0.7.4",
 ]
@@ -2579,7 +2688,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39354c10dd07468c2e73926b23bb9c2caca74c5501e38a35da70406f1d923310"
 dependencies = [
  "aho-corasick 1.0.2",
- "memchr",
+ "memchr 2.5.0",
  "regex-syntax 0.7.4",
 ]
 
@@ -3080,6 +3189,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "sysinfo"
+version = "0.29.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d10ed79c22663a35a255d289a7fdcb43559fc77ff15df5ce6c341809e7867528"
+dependencies = [
+ "cfg-if",
+ "core-foundation-sys",
+ "libc",
+ "ntapi",
+ "once_cell",
+ "rayon",
+ "winapi",
+]
+
+[[package]]
+name = "systemstat"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a24aec24a9312c83999a28e3ef9db7e2afd5c64bf47725b758cdc1cafd5b0bd2"
+dependencies = [
+ "bytesize",
+ "lazy_static",
+ "libc",
+ "nom 7.1.3",
+ "time 0.3.23",
+ "winapi",
+]
+
+[[package]]
 name = "tar"
 version = "0.4.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3183,6 +3321,15 @@ dependencies = [
  "libc",
  "redox_syscall 0.2.16",
  "winapi",
+]
+
+[[package]]
+name = "thread-tree"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ffbd370cb847953a25954d9f63e14824a36113f8c72eecf6eccef5dc4b45d630"
+dependencies = [
+ "crossbeam-channel",
 ]
 
 [[package]]
@@ -3689,8 +3836,10 @@ name = "whisper"
 version = "0.1.0"
 dependencies = [
  "burn",
+ "burn-ndarray",
  "burn-wgpu",
  "hound",
+ "npy",
  "num-traits",
  "serde",
  "tokenizers",

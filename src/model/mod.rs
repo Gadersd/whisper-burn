@@ -1,3 +1,5 @@
+pub mod load;
+
 use std::f32::NEG_INFINITY;
 
 use burn::{
