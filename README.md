@@ -54,7 +54,7 @@ sox audio.wav -r 16000 audio16k.wav
 Now transcribe.
 
 ```
-cargo run --release --bin sample audio16k.wav tiny_en
+cargo run --release --bin transcribe tiny_en audio16k.wav transcription.txt
 ```
 
 This usage assumes that "audio16k.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.
