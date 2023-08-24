@@ -46,12 +46,17 @@ wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.mp
 
 #### 3. Run the Application
 
-Once you've finished setting up, you can run the application using this command:
+The audio file must be have a sample rate of 16k.
 
 ```
-cargo run --release --bin sample audio.wav tiny_en
+sox audio.wav -r 16000 audio16k.wav
+```
+Now transcribe.
+
+```
+cargo run --release --bin sample audio16k.wav tiny_en
 ```
 
-This usage assumes that "audio.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.
+This usage assumes that "audio16k.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.
 
 Enjoy using **Whisper Burn**!
