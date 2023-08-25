@@ -6,7 +6,13 @@ use whisper::helper::*;
 use whisper::token;
 use whisper::transcribe::waveform_to_text;
 
-use burn_wgpu::{WgpuBackend, WgpuDevice, AutoGraphicsApi};
+cfg_if::cfg_if! {
+    if #[cfg(feature = "torch-backend")] {
+        use burn_tch::{TchBackend, TchDevice};
+    } else if #[cfg(feature = "wgpu-backend")] {
+        use burn_wgpu::{WgpuBackend, WgpuDevice, AutoGraphicsApi};
+    }
+}
 
 use burn::{
     config::Config, 
@@ -65,8 +71,15 @@ fn load_whisper_model_file<B: Backend>(config: &WhisperConfig, filename: &str) -
 use std::{env, process, fs};
 
 fn main() {
-    type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
-    let device = WgpuDevice::BestAvailable;
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "torch-backend")] {
+            type Backend = TchBackend<f32>;
+            let device = TchDevice::Cuda(0);
+        } else if #[cfg(feature = "wgpu-backend")] {
+            type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
+            let device = WgpuDevice::BestAvailable;
+        }
+    }
 
     let args: Vec<String> = env::args().collect();
 

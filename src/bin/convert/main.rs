@@ -10,7 +10,7 @@ use burn::{
     },
 };
 
-use burn_ndarray::{NdArrayBackend, NdArrayDevice};
+use burn_tch::{TchBackend, TchDevice};
 
 use burn::config::Config;
 use burn::record::{self, Recorder, DefaultRecorder};
@@ -34,8 +34,8 @@ fn main() {
         }
     };
 
-    let device = NdArrayDevice::Cpu;
-    type Backend = NdArrayBackend<f32>;
+    type Backend = TchBackend<f32>;
+    let device = TchDevice::Cpu;
 
     let (whisper, whisper_config): (Whisper<Backend>, WhisperConfig) = match load_whisper(&model_name) {
         Ok(model) => model,

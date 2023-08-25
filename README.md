@@ -54,7 +54,11 @@ sox audio.wav -r 16000 audio16k.wav
 Now transcribe.
 
 ```
+# with tch backend (default)
 cargo run --release --bin transcribe tiny_en audio16k.wav transcription.txt
+
+# or with wgpu backend (may be unstable for large models)
+cargo run --release --features wgpu-backend --bin transcribe tiny_en audio16k.wav transcription.txt
 ```
 
 This usage assumes that "audio16k.wav" is the audio file you want to transcribe, and "tiny_en" is the model to use. Please adjust according to your specific needs.

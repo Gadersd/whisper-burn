@@ -5,10 +5,23 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = ["torch-backend"]
+torch-backend = ["burn-tch"]
+wgpu-backend = ["burn-wgpu"]
+
+[dependencies.burn-tch]
+package = "burn-tch"
+git = "https://github.com/burn-rs/burn.git"
+optional = true
+
+[dependencies.burn-wgpu]
+package = "burn-wgpu"
+git = "https://github.com/burn-rs/burn.git"
+optional = true
+
 [dependencies]
 burn = { git = "https://github.com/burn-rs/burn.git" }
-burn-wgpu = { package = "burn-wgpu", git = "https://github.com/burn-rs/burn.git" }
-burn-ndarray = { package = "burn-ndarray", git = "https://github.com/burn-rs/burn.git" }
 serde = {version = "1.0.171", features = ["std", "derive"]}
 num-traits = "0.2.15"
 hound = "3.5.0"
@@ -17,3 +30,4 @@ tokenizers = {version = "0.13.3", default-features = false, features = [
   "http",
 ]}
 npy = "0.4.0"
+cfg-if = "0.1"
