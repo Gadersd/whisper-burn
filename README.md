@@ -10,7 +10,7 @@ This project is licensed under the terms of the MIT license.
 
 The OpenAI Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
 
-If you have a custom fine-tuned model you can easily convert it to burn's format. Here is an example of converting OpenAI's tiny en model.
+If you have a custom fine-tuned model you can easily convert it to burn's format. Here is an example of converting OpenAI's tiny en model. The tinygrad dependency of the dump.py script should be installed from source not with pip.
 
 ```
 cd python
