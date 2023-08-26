@@ -40,6 +40,7 @@ fn load_audio_waveform<B: Backend>(filename: &str) -> hound::Result<(Vec<f32>, u
     let sample_format = spec.sample_format;
 
     assert_eq!(sample_rate, 16000, "The audio sample rate must be 16k.");
+    assert_eq!(channels, 1, "The audio must be single-channel.");
 
     let max_int_val = 2_u32.pow(spec.bits_per_sample as u32 - 1) - 1;
 
