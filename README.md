@@ -46,7 +46,10 @@ wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tiny_en.mp
 
 #### 3. Run the Application
 
-The audio file must be have a sample rate of 16k and be single-channel.
+**Requirements**
+
+- The audio file must be have a sample rate of 16k and be single-channel.
+- `sox`. For Mac `brew install sox`
 
 ```
 sox audio.wav -r 16000 -c 1 audio16k.wav
