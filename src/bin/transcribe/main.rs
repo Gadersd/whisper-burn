@@ -7,10 +7,10 @@ use whisper::token;
 use whisper::transcribe::waveform_to_text;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "torch-backend")] {
-        use burn_tch::{TchBackend, TchDevice};
-    } else if #[cfg(feature = "wgpu-backend")] {
+    if #[cfg(feature = "wgpu-backend")] {
         use burn_wgpu::{WgpuBackend, WgpuDevice, AutoGraphicsApi};
+    } else if #[cfg(feature = "torch-backend")] {
+        use burn_tch::{TchBackend, TchDevice};
     }
 }
 
@@ -73,12 +73,12 @@ use std::{env, process, fs};
 
 fn main() {
     cfg_if::cfg_if! {
-        if #[cfg(feature = "torch-backend")] {
-            type Backend = TchBackend<f32>;
-            let device = TchDevice::Cuda(0);
-        } else if #[cfg(feature = "wgpu-backend")] {
+        if #[cfg(feature = "wgpu-backend")] {
             type Backend = WgpuBackend<AutoGraphicsApi, f32, i32>;
             let device = WgpuDevice::BestAvailable;
+        } else if #[cfg(feature = "torch-backend")] {
+            type Backend = TchBackend<f32>;
+            let device = TchDevice::Cuda(0);
         }
     }
 
