@@ -1,20 +1,9 @@
-use burn::{
-    tensor::{
-        backend::Backend,
-        activation::relu, 
-        Tensor,
-        Int, 
-        Bool, 
-        Float, 
-        TensorKind, 
-        BasicOps, 
-        Numeric, 
-        Element, 
-    },
+use burn::tensor::{
+    activation::relu, backend::Backend, BasicOps, Bool, Element, Float, Int, Numeric, Tensor,
+    TensorKind,
 };
 
 use num_traits::ToPrimitive;
-
 
 pub fn tensor_max_scalar<B: Backend, const D: usize>(x: Tensor<B, D>, max: f64) -> Tensor<B, D> {
     relu(x.sub_scalar(max)).add_scalar(max)
@@ -60,23 +49,21 @@ pub fn _10pow<B: Backend, const D: usize>(x: Tensor<B, D>) -> Tensor<B, D> {
 
 pub fn to_float<B: Backend, const D: usize>(x: Tensor<B, D, Int>) -> Tensor<B, D, Float> {
     let device = x.device();
-    Tensor::from_data(
-        x
-        .into_data()
-        .convert()
-    ).to_device(&device)
+    Tensor::from_data(x.into_data().convert()).to_device(&device)
 }
 
 pub fn to_float_bool<B: Backend, const D: usize>(x: Tensor<B, D, Bool>) -> Tensor<B, D, Float> {
     let device = x.device();
-    Tensor::from_data(
-        x
-        .into_data()
-        .convert()
-    ).to_device(&device)
+    Tensor::from_data(x.into_data().convert()).to_device(&device)
 }
 
-pub fn reverse<B: Backend, const D: usize, K: TensorKind<B> + BasicOps<B> + Numeric<B>>(x: Tensor<B, D, K>, dim: usize) -> Tensor<B, D, K> where <K as BasicOps<B>>::Elem: Element {
+pub fn reverse<B: Backend, const D: usize, K: TensorKind<B> + BasicOps<B> + Numeric<B>>(
+    x: Tensor<B, D, K>,
+    dim: usize,
+) -> Tensor<B, D, K>
+where
+    <K as BasicOps<B>>::Elem: Element,
+{
     let len = x.dims()[dim];
     let indices = -Tensor::arange_device(0..len, &x.device()) + (len - 1) as i64;
     x.select(dim, indices)
