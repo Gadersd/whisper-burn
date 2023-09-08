@@ -1,4 +1,4 @@
-use burn::tensor::{activation::relu, backend::Backend, Tensor};
+use burn::tensor::{activation::relu, backend::Backend, Tensor, ElementConversion};
 
 use crate::helper::*;
 
@@ -47,7 +47,7 @@ pub fn prep_audio<B: Backend>(waveform: Tensor<B, 2>, sample_rate: f64) -> Tenso
 
     let log_spec = tensor_log10(tensor_max_scalar(mel_spec, 1.0e-10));
 
-    let max = tensor_max_element(log_spec.clone());
+    let max: f64 = log_spec.clone().max().into_scalar().elem();
 
     let log_spec = tensor_max_scalar(log_spec, max - 8.0);
     let log_spec = (log_spec + 4.0) / 4.0;
@@ -134,7 +134,7 @@ fn get_mel_filters_device<B: Backend>(
         "reducing n_mels.",
         stacklevel=2,
     )*/
-    if !(all_zeros(mel_f.slice([0..(n_mels - 2)])) || all_zeros(relu(-max_dim(weights.clone(), 1))))
+    if !(all_zeros(mel_f.slice([0..(n_mels - 2)])) || all_zeros(relu(-weights.clone().max_dim(1))))
     {
         println!("Empty filters detected in mel frequency basis. \nSome channels will produce empty responses. \nTry increasing your sampling rate (and fmax) or reducing n_mels.");
     }
@@ -152,7 +152,7 @@ fn fft_frequencies_device<B: Backend>(
     device: &B::Device,
 ) -> Tensor<B, 1> {
     //return np.fft.rfftfreq(n=n_fft, d=1.0 / sr)
-    to_float(Tensor::arange_device(0..(n_fft / 2 + 1), device))
+    Tensor::arange_device(0..(n_fft / 2 + 1), device).float()
         .mul_scalar(sample_rate / n_fft as f64)
 }
 
@@ -187,7 +187,7 @@ fn mel_frequencies_device<B: Backend>(
     let max_mel = hz_to_mel(fmax, htk);
 
     //mels = np.linspace(min_mel, max_mel, n_mels)
-    let mels = to_float(Tensor::arange_device(0..n_mels, device))
+    let mels = Tensor::arange_device(0..n_mels, device).float()
         .mul_scalar((max_mel - min_mel) / (n_mels - 1) as f64)
         .add_scalar(min_mel);
 
@@ -252,7 +252,7 @@ fn mel_to_hz_tensor<B: Backend>(mel: Tensor<B, 1>, htk: bool) -> Tensor<B, 1> {
         # If we have scalar data, check directly
         freqs = min_log_hz * np.exp(logstep * (mels - min_log_mel))*/
 
-    let log_t = to_float_bool(mel.clone().greater_equal_elem(min_log_mel));
+    let log_t = mel.clone().greater_equal_elem(min_log_mel).float();
     let freq = log_t.clone() * (((mel.clone() - min_log_mel) * logstep).exp() * min_log_hz)
         + (-log_t + 1.0) * (mel * f_sp + f_min);
 
@@ -270,7 +270,8 @@ pub fn hann_window<B: Backend>(window_length: usize) -> Tensor<B, 1> {
 }
 
 pub fn hann_window_device<B: Backend>(window_length: usize, device: &B::Device) -> Tensor<B, 1> {
-    to_float(Tensor::arange_device(0..window_length, device))
+    Tensor::arange_device(0..window_length, device)
+        .float()
         .mul_scalar(std::f64::consts::PI / window_length as f64)
         .sin()
         .powf(2.0)
@@ -346,12 +347,13 @@ pub fn stfft<B: Backend>(
 
     // construct matrix of wave angles
     let coe = std::f64::consts::PI * 2.0 / n_fft as f64;
-    let b = to_float(Tensor::arange_device(0..n_freq, &device))
+    let b = Tensor::arange_device(0..n_freq, &device)
+        .float()
         .mul_scalar(coe)
         .unsqueeze::<2>()
         .transpose()
         .repeat(1, n_fft)
-        * to_float(Tensor::arange_device(0..n_fft, &device)).unsqueeze::<2>();
+        * Tensor::arange_device(0..n_fft, &device).float().unsqueeze::<2>();
 
     // convolve the input slices with the window and waves
     let real_part = (b.clone().cos() * window.clone().unsqueeze())

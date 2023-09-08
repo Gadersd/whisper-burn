@@ -26,35 +26,13 @@ pub fn tensor_log10<B: Backend, const D: usize>(x: Tensor<B, D>) -> Tensor<B, D>
     x.log() / ln10
 }
 
-pub fn tensor_max_element<B: Backend, const D: usize>(x: Tensor<B, D>) -> f64 {
-    let flat: Tensor<B, 1> = x.flatten(0, D - 1);
-    let max_index = flat.clone().argmax(0);
-
-    flat.select(0, max_index).into_scalar().to_f64().unwrap()
-}
-
 pub fn all_zeros<B: Backend, const D: usize>(x: Tensor<B, D>) -> bool {
-    x.powf(2.0).sum().into_scalar().to_f64().unwrap() == 0.0
-}
-
-pub fn max_dim<B: Backend>(x: Tensor<B, 2>, dim: usize) -> Tensor<B, 2> {
-    let indices = x.clone().argmax(dim).flatten(0, 1);
-    x.select(dim, indices)
+    x.abs().max().into_scalar().to_f64().unwrap() == 0.0
 }
 
 pub fn _10pow<B: Backend, const D: usize>(x: Tensor<B, D>) -> Tensor<B, D> {
     let log10 = (10.0f64).ln();
     (x * log10).exp()
-}
-
-pub fn to_float<B: Backend, const D: usize>(x: Tensor<B, D, Int>) -> Tensor<B, D, Float> {
-    let device = x.device();
-    Tensor::from_data(x.into_data().convert()).to_device(&device)
-}
-
-pub fn to_float_bool<B: Backend, const D: usize>(x: Tensor<B, D, Bool>) -> Tensor<B, D, Float> {
-    let device = x.device();
-    Tensor::from_data(x.into_data().convert()).to_device(&device)
 }
 
 pub fn reverse<B: Backend, const D: usize, K: TensorKind<B> + BasicOps<B> + Numeric<B>>(
