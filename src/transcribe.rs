@@ -184,7 +184,7 @@ fn mels_to_text<B: Backend>(
 
     let neg_infty = -f32::INFINITY;
     let mut nonspecial_mask: Vec<f32> = (0..bpe.vocab_size()).into_iter().map(|tok| /*if bpe.is_special(tok) {neg_infty} else {0.0}*/ 0.0).collect();
-    nonspecial_mask[end_token] = neg_infty;
+    //nonspecial_mask[end_token] = neg_infty;
     let nonspecial_mask = Tensor::from_floats(Data::new(
         nonspecial_mask,
         [bpe.vocab_size()].into(),
@@ -225,16 +225,25 @@ fn mels_to_text<B: Backend>(
         //println!("{}", bpe.decode(&[token_id], false)?);
 
         // if end of text confidence is great enough then stop
-        /*if (eot_logit - token_logit).exp() > 5.0 {
+        if (eot_logit - token_logit).exp() > 0.5 {
             if token_id != end_token {
                 tokens.push(end_token);
             }
             break;
-        }*/
+        }
 
-        let repeat_window_size = 5;
+        /*let repeat_window_size = 5;
         let min_n_repeats = 4; // three times to charm, four to scorn
-        if let Some( (index_of_first_repeat, end) ) =
+        println!("{}", bpe.decode(&tokens[..], false).unwrap());
+        if let Some(period) = repetition_period(&tokens[..], min_n_repeats) {
+            println!("period = {}", period);
+            let end = first_repetition_end(&tokens[..], period);
+
+            tokens.truncate(end);
+            tokens.push(end_token);
+            break;
+        }*/
+        /*if let Some( (index_of_first_repeat, end) ) =
             find_repeated_tokens_index(&tokens[..], repeat_window_size, min_n_repeats)
         {
             //let end = index_of_first_repeat + repeat_window_size;
@@ -242,12 +251,46 @@ fn mels_to_text<B: Backend>(
             tokens.truncate(end);
             tokens.push(end_token);
             break;
-        }
+        }*/
     }
 
     let text = bpe.decode(&tokens[..], true)?;
 
     return Ok((text, tokens));
+}
+
+fn first_repetition_end(tokens: &[usize], period: usize) -> usize {
+    for i in (period..tokens.len() - period).into_iter().rev() {
+        if tokens[i - period..i] != tokens[i..i + period] {
+            return i + 1;
+        }
+    }
+
+    period
+}
+
+fn repetition_period(
+    tokens: &[usize], 
+    min_repetitions: usize, 
+) -> Option<usize> {
+    for i in (0..tokens.len()).into_iter().rev() {
+        let period = tokens.len() - i;
+
+        if i / period < min_repetitions {
+            return None;
+        }
+
+        if (0..min_repetitions).into_iter().all(|j| {
+            let e = i - period * j;
+            let s = e - period;
+
+            tokens[s..e] == tokens[i..i + period]
+        }) {
+            return Some(period);
+        }
+    }
+
+    None
 }
 
 fn find_repeated_tokens_index(
