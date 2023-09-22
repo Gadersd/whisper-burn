@@ -8,7 +8,7 @@ import multiprocessing
 import numpy as np
 from typing import Optional
 from extra.utils import download_file
-from tinygrad.state import torch_load, load_state_dict
+from tinygrad.nn.state import torch_load, load_state_dict
 from tinygrad.helpers import getenv
 import tinygrad.nn as nn
 from tinygrad.tensor import Tensor
@@ -207,6 +207,8 @@ def save_whisper(whisper, path):
     pathlib.Path(path).mkdir(parents=True, exist_ok=True)
     save_audio_encoder(whisper.encoder, pathlib.Path(path, 'encoder'))
     save_text_decoder(whisper.decoder, pathlib.Path(path, 'decoder'))
+
+import re
 
 def download_and_save_whisper(model_name, save_name):
   state = torch_load(model_name)
