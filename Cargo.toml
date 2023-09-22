@@ -31,3 +31,5 @@ tokenizers = {version = "0.13.3", default-features = false, features = [
 ]}
 npy = "0.4.0"
 cfg-if = "0.1"
+strum = "0.25.0"
+strum_macros = "0.25.0"
