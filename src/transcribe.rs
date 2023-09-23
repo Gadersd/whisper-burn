@@ -182,13 +182,13 @@ fn mels_to_text<B: Backend>(
 
     let encoder_output = whisper.forward_encoder(mels);
 
-    let neg_infty = -f32::INFINITY;
+    /*let neg_infty = -f32::INFINITY;
     let mut nonspecial_mask: Vec<f32> = (0..bpe.vocab_size()).into_iter().map(|tok| /*if bpe.is_special(tok) {neg_infty} else {0.0}*/ 0.0).collect();
     //nonspecial_mask[end_token] = neg_infty;
     let nonspecial_mask = Tensor::from_floats(Data::new(
         nonspecial_mask,
         [bpe.vocab_size()].into(),
-    )).to_device(&device);
+    )).to_device(&device);*/
 
     loop {
         if tokens.len() >= n_ctx_max_decoder {
@@ -208,7 +208,7 @@ fn mels_to_text<B: Backend>(
         let [n_batch, n_token, n_dict] = out.dims();
         let last_row: Tensor<B, 1> = out.slice([0..1, (n_token - 1)..n_token]).flatten(0, 2);
 
-        let token_id = (last_row.clone() + nonspecial_mask.clone()).argmax(0).into_scalar().to_usize().unwrap();
+        let token_id = last_row.clone().argmax(0).into_scalar().to_usize().unwrap();
         let token_logit = last_row
             .clone()
             .slice([token_id..(token_id + 1)])
