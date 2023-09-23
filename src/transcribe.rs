@@ -232,9 +232,9 @@ fn mels_to_text<B: Backend>(
             break;
         }
 
-        /*let repeat_window_size = 5;
+        let repeat_window_size = 5;
         let min_n_repeats = 4; // three times to charm, four to scorn
-        println!("{}", bpe.decode(&tokens[..], false).unwrap());
+        /*println!("{}", bpe.decode(&tokens[..], false).unwrap());
         if let Some(period) = repetition_period(&tokens[..], min_n_repeats) {
             println!("period = {}", period);
             let end = first_repetition_end(&tokens[..], period);
@@ -243,7 +243,7 @@ fn mels_to_text<B: Backend>(
             tokens.push(end_token);
             break;
         }*/
-        /*if let Some( (index_of_first_repeat, end) ) =
+        if let Some( (index_of_first_repeat, end) ) =
             find_repeated_tokens_index(&tokens[..], repeat_window_size, min_n_repeats)
         {
             //let end = index_of_first_repeat + repeat_window_size;
@@ -251,7 +251,7 @@ fn mels_to_text<B: Backend>(
             tokens.truncate(end);
             tokens.push(end_token);
             break;
-        }*/
+        }
     }
 
     let text = bpe.decode(&tokens[..], true)?;
