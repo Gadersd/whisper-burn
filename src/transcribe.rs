@@ -210,7 +210,7 @@ fn mels_to_text<B: Backend>(
         [bpe.vocab_size()].into(),
     )).to_device(&device);*/
 
-    let beam_size = 1;
+    let beam_size = 5;
     let max_depth = 100;
 
     let beamsearch_is_finished = |toks: &[BeamSearchToken]| {
@@ -251,20 +251,17 @@ fn mels_to_text<B: Backend>(
         let continuations = beam_logits
             .zip(beams)
             .map(|(logits, beam)| {
-                let logit_sum = beam.seq.iter().map(|btok| btok.logit).sum::<f64>();
-
                 logits
                     .into_iter()
                     .map(|logit| logit.elem::<f64>())
                     .enumerate()
                     .map(|(token_id, logit)| {
-                        let avg_logit = (logit_sum + logit) / (beam.seq.len() + 1) as f64;
                         (
                             BeamSearchToken {
                                 token: token_id, 
                                 logit: logit, 
                             }, 
-                            avg_logit,  
+                            beam.score + logit,  
                         )
                     }
                     )
