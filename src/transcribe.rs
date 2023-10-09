@@ -16,6 +16,7 @@ use burn::{
         backend::{self, Backend},
         Data, Float, Int, Tensor,
         ElementConversion, 
+        activation::log_softmax, 
     },
 };
 
@@ -119,9 +120,14 @@ fn waveform_to_mel_tensor<B: Backend>(
     let shift = n_samples_per_tensor.saturating_sub(chunk_overlap).max(1);
     let iter_len = waveform.len().saturating_sub(n_samples_per_tensor) / shift + 1;
 
+    println!("iter len = {}", iter_len);
+
     (0..iter_len).into_iter().map(move |i| {
         let start = i * shift;
         let end = (start + n_samples_per_tensor).min(waveform.len());
+
+        println!("Start = {}, END = {}", start, end);
+        println!("len = {}", waveform.len());
 
         let slice = &waveform[start..end];
 
@@ -139,7 +145,7 @@ use std::f32;
 #[derive(Clone)]
 struct BeamSearchToken {
     token: usize, 
-    logit: f64, 
+    log_prob: f64, 
 }                             
 
 fn mels_to_text<B: Backend>(
@@ -147,7 +153,7 @@ fn mels_to_text<B: Backend>(
     bpe: &Gpt2Tokenizer,
     lang: Language, 
     mels: Tensor<B, 3>,
-    prev_normal_tokens: &[usize],
+    prev_nonspecial_tokens: &[usize],
     padding: usize,
 ) -> token::Result<(String, Vec<usize>)> {
     let device = mels.device();
@@ -188,16 +194,32 @@ fn mels_to_text<B: Backend>(
     .chain(iter::once(transcription_token))
     .chain(iter::once(bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap()))
     .collect();*/
-    let initial_tokens: Vec<_> = [start_token, lang_token, transcription_token, notimestamp].into_iter().map(|tok| BeamSearchToken {
+
+    let mut initial_tokens = if prev_nonspecial_tokens.len() > 0 {
+        iter::once(start_of_prev_token).chain(prev_nonspecial_tokens.iter().cloned()).collect()
+    } else {
+        Vec::new()
+    };
+
+    let mut initial_tokens = Vec::new();
+
+    initial_tokens.extend([start_token, lang_token, transcription_token, notimestamp]);
+
+    let initial_tokens = initial_tokens.into_iter().map(|tok| BeamSearchToken {
+        token: tok, 
+        log_prob: 0.0, 
+    }).collect();
+
+    /*let initial_tokens: Vec<_> = [start_token, lang_token, transcription_token, notimestamp].into_iter().map(|tok| BeamSearchToken {
         token: tok, 
         logit: 0.0, 
-    }).collect();
+    }).collect();*/
 
     type BeamNode = beam::BeamNode<BeamSearchToken>;
 
     let initial_tokens = BeamNode {
         seq: initial_tokens, 
-        score: 0.0, 
+        log_prob: 0.0, 
     };
 
     let encoder_output = whisper.forward_encoder(mels);
@@ -238,34 +260,35 @@ fn mels_to_text<B: Backend>(
         )))
         .to_device(&device);
 
-        let out = whisper.forward_decoder(token_tensor, encoder_output.clone().repeat(0, beams.len()));
+        let logits = whisper.forward_decoder(token_tensor, encoder_output.clone().repeat(0, beams.len()));
+        let log_probs = log_softmax(logits, 2);
 
-        let [n_batch, n_token, n_dict] = out.dims();
-        let beam_logits = beams.iter().enumerate().map(|(i, beam)| {
+        let [n_batch, n_token, n_dict] = log_probs.dims();
+        let beam_log_probs = beams.iter().enumerate().map(|(i, beam)| {
             let batch = i;
             let token_index = beam.seq.len() - 1;
 
-            out.clone().slice([batch..batch + 1, token_index..token_index + 1]).flatten::<1>(0, 2).into_data().value
+            log_probs.clone().slice([batch..batch + 1, token_index..token_index + 1]).flatten::<1>(0, 2).into_data().value
         });
 
-        let continuations = beam_logits
+        let continuations = beam_log_probs
             .zip(beams)
-            .map(|(logits, beam)| {
-                logits
+            .map(|(log_probs, beam)| {
+                (log_probs
                     .into_iter()
-                    .map(|logit| logit.elem::<f64>())
+                    .map(|log_prob| log_prob.elem::<f64>())
                     .enumerate()
-                    .map(|(token_id, logit)| {
+                    .map(|(token_id, log_prob)| {
                         (
                             BeamSearchToken {
                                 token: token_id, 
-                                logit: logit, 
+                                log_prob: log_prob, 
                             }, 
-                            beam.score + logit,  
+                            beam.log_prob + log_prob,  
                         )
                     }
                     )
-                    .collect()
+                    .collect(), end_token)
             }).collect();
 
         continuations
