@@ -80,10 +80,10 @@ where
             //let dist = WeightedIndex::new(continuations.into_iter().map(|(_, log_prob)| log_prob)).unwrap();
 
             
-            finished_beams.push(BeamNode {
+            /*finished_beams.push(BeamNode {
                 seq: [beam_node.seq.clone(), vec![end_node.0]].concat(), 
-                log_prob: end_node.1 * 0.8, 
-            });
+                log_prob: end_node.1, 
+            });*/
 
             new_beams.extend(
                 sorted

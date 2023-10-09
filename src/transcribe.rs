@@ -109,6 +109,8 @@ fn find_chunk_overlap(
     }
 }
 
+use std::ops::Div;
+
 fn waveform_to_mel_tensor<B: Backend>(
     waveform: Vec<f32>,
     sample_rate: usize,
@@ -118,16 +120,11 @@ fn waveform_to_mel_tensor<B: Backend>(
     let chunk_overlap = sample_rate * 3;
     let n_samples_per_tensor = window_length_samples;
     let shift = n_samples_per_tensor.saturating_sub(chunk_overlap).max(1);
-    let iter_len = waveform.len().saturating_sub(n_samples_per_tensor) / shift + 1;
-
-    println!("iter len = {}", iter_len);
+    let iter_len = waveform.len().saturating_sub(1).div(shift) + 1;
 
     (0..iter_len).into_iter().map(move |i| {
         let start = i * shift;
         let end = (start + n_samples_per_tensor).min(waveform.len());
-
-        println!("Start = {}, END = {}", start, end);
-        println!("len = {}", waveform.len());
 
         let slice = &waveform[start..end];
 
