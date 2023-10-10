@@ -271,7 +271,7 @@ fn mels_to_text<B: Backend>(
         let continuations = beam_log_probs
             .zip(beams)
             .map(|(log_probs, beam)| {
-                (log_probs
+                log_probs
                     .into_iter()
                     .map(|log_prob| log_prob.elem::<f64>())
                     .enumerate()
@@ -285,7 +285,7 @@ fn mels_to_text<B: Backend>(
                         )
                     }
                     )
-                    .collect(), end_token)
+                    .collect()
             }).collect();
 
         continuations

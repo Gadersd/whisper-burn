@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
-pub struct BeamNode<T> {
+#[derive(Clone)]
+pub struct BeamNode<T: Clone> {
     pub seq: Vec<T>,
     pub log_prob: f64,
 }
@@ -14,24 +15,9 @@ pub fn beam_search<T, F, G>(
 ) -> Vec<T>
 where
     T: Clone,
-    F: Fn(&[BeamNode<T>]) -> Vec<(Vec<(T, f64)>, usize)> + Clone,
+    F: Fn(&[BeamNode<T>]) -> Vec<Vec<(T, f64)>> + Clone,
     G: Fn(&[T]) -> bool + Clone
 {
-    /*for _ in 0..depth {
-        beam = beam.into_iter().flat_map(|beam_node| {
-            let mut continuations = next(&beam_node.seq);
-            continuations.sort_unstable_by(|(tok1, log_prob1), (tok2, log_prob2)| log_prob2.partial_cmp(&log_prob1).unwrap());
-
-            continuations
-                .into_iter()
-                .map(move |(tok, log_prob)| BeamNode {
-                    seq: [beam_node.seq.clone(), vec![tok]].concat(),
-                    log_prob: log_prob,
-                })
-                .take(beam_size)
-        }).collect();
-    }*/
-
     let mut beams = initial_beams;
     for i in 0..max_depth {
         if let Some(beam) = beams.iter().max_by(|a, b| a.log_prob.partial_cmp(&b.log_prob).unwrap()) {
@@ -43,8 +29,6 @@ where
         beams = beam_search_step(beams, next.clone(), is_finished.clone(), beam_size);
         println!("Depth: {}", i);
     }
-
-    //let beams = (0..max_depth).into_iter().fold(initial_beams, |beam, d| {println!("Depth {}", d); beam_search_step(beam, next.clone(), is_finished.clone(), beam_size)});
 
     beams.into_iter()
         .max_by(|a, b| a.log_prob.partial_cmp(&b.log_prob).unwrap())
@@ -60,49 +44,67 @@ pub fn beam_search_step<T, F, G>(
 ) -> Vec<BeamNode<T>>
 where
     T: Clone,
-    F: Fn(&[BeamNode<T>]) -> Vec<(Vec<(T, f64)>, usize)>,
+    F: Fn(&[BeamNode<T>]) -> Vec<Vec<(T, f64)>>,
     G: Fn(&[T]) -> bool,
 {
-    let mut finished_beams = Vec::new();
-    let mut new_beams = Vec::with_capacity(beams.len());
+    let mut finished_beams = Vec::with_capacity(beam_size);
+    let mut new_beams = Vec::with_capacity(beam_size);
+
     let continuations = next(&beams);
 
-    for (beam_node, (continuations, end_node_index)) in beams.into_iter().zip(continuations) {
+    for (beam_node, continuations) in beams.into_iter().zip(continuations) {
         if is_finished(&beam_node.seq) {
             finished_beams.push(beam_node);
         } else {
-            let end_node = continuations[end_node_index].clone();
+            let top_new_beams = get_top_elements(&continuations, |(_, log_prob)| *log_prob, beam_size)
+                .into_iter()
+                .map(move |(tok, log_prob)| {
+                    BeamNode {
+                        seq: [beam_node.seq.clone(), vec![tok.clone()]].concat(),
+                        log_prob: *log_prob,
+                    }
+                });
 
-            let mut sorted = continuations;
-            sorted.sort_unstable_by(|(tok1, log_prob1), (tok2, log_prob2)| log_prob1.partial_cmp(&log_prob2).unwrap());
-
-            // Create a WeightedIndex distribution
-            //let dist = WeightedIndex::new(continuations.into_iter().map(|(_, log_prob)| log_prob)).unwrap();
-
-            
-            /*finished_beams.push(BeamNode {
-                seq: [beam_node.seq.clone(), vec![end_node.0]].concat(), 
-                log_prob: end_node.1, 
-            });*/
-
-            new_beams.extend(
-                sorted
-                    .into_iter()
-                    .rev()
-                    .map(move |(tok, log_prob)| BeamNode {
-                        seq: [beam_node.seq.clone(), vec![tok]].concat(),
-                        log_prob: log_prob,
-                    })
-                    .take(beam_size)
-            )
+            new_beams.extend(top_new_beams);
         }
     }
 
-    // keep only the top beams
-    new_beams.sort_unstable_by(|beam_node1, beam_node2| beam_node1.log_prob.partial_cmp(&beam_node2.log_prob).unwrap());
-    finished_beams.sort_unstable_by(|beam_node1, beam_node2| beam_node1.log_prob.partial_cmp(&beam_node2.log_prob).unwrap());
+    get_top_elements(&new_beams, |beam| beam.log_prob, beam_size)
+        .into_iter()
+        .chain(
+            get_top_elements(&finished_beams, |beam| beam.log_prob, beam_size)
+        )
+        .cloned()
+        .collect()
+}
 
-    new_beams.into_iter().rev().take(beam_size).chain(
-        finished_beams.into_iter().rev().take(beam_size)
-    ).collect()
+fn get_top_elements<T>(elems: &[T], score: impl Fn(&T) -> f64, num: usize) -> Vec<&T> {
+    let mut top_elems = Vec::with_capacity(num);
+    let mut scores = Vec::with_capacity(num);
+
+    for elem in elems {
+        let score = score(elem);
+
+        // most common scenario
+        if top_elems.len() == num {
+            if score < scores[0] {
+                continue;
+            }
+        }
+
+        if let Some( (idx, _) ) = scores.iter().enumerate().find(|(_, &s)| s >= score) {
+            top_elems.insert(idx, elem);
+            scores.insert(idx, score);
+        } else {
+            top_elems.push(elem);
+            scores.push(score);
+        }
+
+        if top_elems.len() > num {
+            top_elems.remove(0);
+            scores.remove(0);
+        }
+    }
+
+    top_elems
 }
