@@ -221,8 +221,8 @@ fn mels_to_text<B: Backend>(
 
     let encoder_output = whisper.forward_encoder(mels);
 
-    /*let neg_infty = -f32::INFINITY;
-    let mut nonspecial_mask: Vec<f32> = (0..bpe.vocab_size()).into_iter().map(|tok| /*if bpe.is_special(tok) {neg_infty} else {0.0}*/ 0.0).collect();
+    let neg_infty = -f32::INFINITY;
+    /*let mut nonspecial_mask: Vec<f32> = (0..bpe.vocab_size()).into_iter().map(|tok| /*if bpe.is_special(tok) {neg_infty} else {0.0}*/ 0.0).collect();
     //nonspecial_mask[end_token] = neg_infty;
     let nonspecial_mask = Tensor::from_floats(Data::new(
         nonspecial_mask,
@@ -239,6 +239,16 @@ fn mels_to_text<B: Backend>(
             false
         }
     };
+
+    let vocab_size = bpe.vocab_size();
+    let mut special_tokens_maskout: Vec<f32> = (0..vocab_size).into_iter().map(|token| if bpe.is_special(token) {neg_infty} else {0.0}).collect();
+    //special_tokens_maskout[end_token] = 1.0;
+
+    let special_tokens_maskout = Tensor::from_data(Data::new(
+        special_tokens_maskout,
+        [vocab_size].into(),
+    ).convert())
+    .to_device(&device);
 
     let beamsearch_next = |beams: &[BeamNode]| {
         // convert tokens into tensor
@@ -258,6 +268,11 @@ fn mels_to_text<B: Backend>(
         .to_device(&device);
 
         let logits = whisper.forward_decoder(token_tensor, encoder_output.clone().repeat(0, beams.len()));
+        let logits = if max_seq_len > 5 {
+            logits
+        } else {
+            logits + special_tokens_maskout.clone().unsqueeze()
+        };
         let log_probs = log_softmax(logits, 2);
 
         let [n_batch, n_token, n_dict] = log_probs.dims();
