@@ -8,7 +8,7 @@ pub struct BeamNode<T: Clone> {
 
 pub fn beam_search<T, F, G>(
     initial_beams: Vec<BeamNode<T>>,
-    next: F,
+    mut next: F,
     is_finished: G, 
     beam_size: usize,
     max_depth: usize,
@@ -38,7 +38,7 @@ where
 
 pub fn beam_search_step<T, F, G>(
     beams: Vec<BeamNode<T>>,
-    next: F,
+    mut next: F,
     is_finished: G, 
     beam_size: usize,
 ) -> Vec<BeamNode<T>>

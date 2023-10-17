@@ -250,6 +250,8 @@ fn mels_to_text<B: Backend>(
     ).convert())
     .to_device(&device);
 
+    //let mut cache = whisper.cache_empty();
+
     let beamsearch_next = |beams: &[BeamNode]| {
         // convert tokens into tensor
         let max_seq_len = beams.iter().map(|beam| beam.seq.len()).max().unwrap_or(0);

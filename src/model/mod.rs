@@ -1,5 +1,7 @@
 pub mod load;
 
+use crate::cache::TensorCache;
+
 use std::f32::NEG_INFINITY;
 
 use burn::{
@@ -59,6 +61,19 @@ impl<B: Backend> Whisper<B> {
         encoder_output: Tensor<B, 3>,
     ) -> Tensor<B, 3> {
         self.decoder.forward(tokens, encoder_output)
+    }
+
+    pub fn forward_decoder_cache(
+        &self,
+        tokens: Tensor<B, 2, Int>,
+        encoder_output: Tensor<B, 3>,
+        cache: &mut TextDecoderCache<B>,  
+    ) -> Tensor<B, 3> {
+        self.decoder.forward_cache(tokens, encoder_output, cache)
+    }
+
+    pub fn cache_empty(&self) -> TextDecoderCache<B> {
+        self.decoder.cache_empty()
     }
 
     pub fn encoder_ctx_size(&self) -> usize {
@@ -147,17 +162,60 @@ impl<B: Backend> TextDecoder<B> {
 
         //let mask = attn_decoder_mask(seq_len);
 
-        let mut x = x;
-        for block in &self.blocks {
-            x = block.forward(x, xa.clone(), self.mask.val());
-        }
+        let x = self.blocks.iter().fold(x, |x, block| block.forward(x, xa.clone(), self.mask.val()));
 
         let x = self.ln.forward(x);
         return x.matmul(self.token_embedding.val().transpose().unsqueeze::<3>());
     }
 
+    fn forward_cache(&self, x: Tensor<B, 2, Int>, xa: Tensor<B, 3>, cache: &mut TextDecoderCache<B>) -> Tensor<B, 3> {
+        let [n_batch, seq_len] = x.dims();
+
+        assert!(
+            seq_len <= self.n_text_ctx,
+            "Token sequence length {} must not exceed {}.",
+            seq_len,
+            self.n_text_ctx
+        );
+
+        let x = embedding(self.token_embedding.val(), x)
+            + self
+                .positional_embedding
+                .val()
+                .slice([0..seq_len])
+                .unsqueeze::<3>();
+
+        //let mask = attn_decoder_mask(seq_len);
+
+        let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward_cache(x, xa.clone(), self.mask.val(), cache));
+
+        cache.out.forward_autoregressive(x, 1, |t| {
+            let t = self.ln.forward(t);
+            t.matmul(self.token_embedding.val().transpose().unsqueeze::<3>())
+        })
+    }
+
+    pub fn cache_empty(&self) -> TextDecoderCache<B> {
+        TextDecoderCache::empty(self.blocks.len())
+    }
+
     fn ctx_size(&self) -> usize {
         self.n_text_ctx
+    }
+}
+
+pub struct TextDecoderCache<B: Backend> {
+    blocks: Vec<ResidualDecoderAttentionBlockCache<B>>,
+    out: TensorCache<B, 3>,
+}
+
+impl<B: Backend> TextDecoderCache<B> {
+    fn empty(n_blocks: usize) -> Self {
+
+        Self {
+            blocks: (0..n_blocks).into_iter().map(|_| ResidualDecoderAttentionBlockCache::empty()).collect(), 
+            out: TensorCache::empty(), 
+        }
     }
 }
 
@@ -348,6 +406,39 @@ impl<B: Backend> ResidualDecoderAttentionBlock<B> {
         let x = x.clone() + self.mlp.forward(self.mlp_ln.forward(x));
         return x;
     }
+
+    fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, mask: Tensor<B, 2>, cache: &mut ResidualDecoderAttentionBlockCache<B>) -> Tensor<B, 3> {
+        let ln = cache.attn_ln.forward_autoregressive(x.clone(), 1, |t| self.attn_ln.forward(t));
+        let x = x + self.attn.forward_cache(ln, Some(mask), &mut cache.attn);
+        
+        let x = x.clone() + self.cross_attn.forward_cache(self.cross_attn_ln.forward(x), xa, &mut cache.cross_attn);
+
+        let x = cache.out.forward_autoregressive(x, 1, |t| {
+            t.clone() + self.mlp.forward(self.mlp_ln.forward(t))
+        });
+
+        return x;
+    }
+}
+
+pub struct ResidualDecoderAttentionBlockCache<B: Backend> {
+    attn: MultiHeadSelfAttentionCache<B>,
+    attn_ln: TensorCache<B, 3>,
+    cross_attn: MultiHeadCrossAttentionCache<B>,
+    cross_attn_ln: TensorCache<B, 3>,
+    out: TensorCache<B, 3>,
+}
+
+impl<B: Backend> ResidualDecoderAttentionBlockCache<B> {
+    fn empty() -> Self {
+        Self {
+            attn: MultiHeadSelfAttentionCache::empty(), 
+            attn_ln: TensorCache::empty(), 
+            cross_attn: MultiHeadCrossAttentionCache::empty(), 
+            cross_attn_ln: TensorCache::empty(), 
+            out: TensorCache::empty(), 
+        }
+    }
 }
 
 #[derive(Config)]
@@ -379,6 +470,22 @@ impl<B: Backend> MLP<B> {
         let x = self.lin2.forward(x);
 
         return x;
+    }
+
+    pub fn forward_cache(&self, x: Tensor<B, 3>, cache: &mut MLPCache<B>) -> Tensor<B, 3> {
+        cache.lin2.forward_autoregressive(x, 1, |t| self.forward(t))
+    }
+}
+
+pub struct MLPCache<B: Backend> {
+    lin2: TensorCache<B, 3>,
+}
+
+impl<B: Backend> MLPCache<B> {
+    fn empty() -> Self {
+        Self {
+            lin2: TensorCache::empty(), 
+        }
     }
 }
 
@@ -434,6 +541,34 @@ impl<B: Backend> MultiHeadSelfAttention<B> {
 
         return self.out.forward(wv);
     }
+
+    pub fn forward_cache(&self, x: Tensor<B, 3>, mask: Option<Tensor<B, 2>>, cache: &mut MultiHeadSelfAttentionCache<B>) -> Tensor<B, 3> {
+        let q = cache.query.forward_autoregressive(x.clone(), 1, |t| self.query.forward(t));
+        let k = cache.key.forward_autoregressive(x.clone(), 1, |t| self.key.forward(t));
+        let v = cache.value.forward_autoregressive(x, 1, |t| self.value.forward(t));
+
+        let wv = qkv_attention(q, k, v, mask, self.n_head);
+
+        return cache.out.forward_autoregressive(wv, 1, |t| self.out.forward(t));
+    }
+}
+
+pub struct MultiHeadSelfAttentionCache<B: Backend> {
+    query: TensorCache<B, 3>,
+    key: TensorCache<B, 3>,
+    value: TensorCache<B, 3>,
+    out: TensorCache<B, 3>,
+}
+
+impl<B: Backend> MultiHeadSelfAttentionCache<B> {
+    fn empty() -> Self {
+        Self {
+            query: TensorCache::empty(),
+            key: TensorCache::empty(),
+            value: TensorCache::empty(),
+            out: TensorCache::empty(),
+        }
+    }
 }
 
 #[derive(Config)]
@@ -487,6 +622,34 @@ impl<B: Backend> MultiHeadCrossAttention<B> {
         let wv = qkv_attention(q, k, v, None, self.n_head);
 
         return self.out.forward(wv);
+    }
+
+    pub fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, cache: &mut MultiHeadCrossAttentionCache<B>) -> Tensor<B, 3> {
+        let q = cache.query.forward_autoregressive(x, 1, |t| self.query.forward(t));
+        let k = cache.key.forward_autoregressive(xa.clone(), 1, |t| self.key.forward(t));
+        let v = cache.value.forward_autoregressive(xa, 1, |t| self.value.forward(t));
+
+        let wv = qkv_attention(q, k, v, None, self.n_head);
+
+        return cache.out.forward_autoregressive(wv, 1, |t| self.out.forward(t));
+    }
+}
+
+pub struct MultiHeadCrossAttentionCache<B: Backend> {
+    query: TensorCache<B, 3>,
+    key: TensorCache<B, 3>,
+    value: TensorCache<B, 3>,
+    out: TensorCache<B, 3>,
+}
+
+impl<B: Backend> MultiHeadCrossAttentionCache<B> {
+    fn empty() -> Self {
+        Self {
+            query: TensorCache::empty(), 
+            key: TensorCache::empty(), 
+            value: TensorCache::empty(), 
+            out: TensorCache::empty(), 
+        }
     }
 }
 
