@@ -191,41 +191,13 @@ impl<B: Backend> TextDecoder<B> {
 
         //let mask = attn_decoder_mask(seq_len);
 
-        //let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward(x, xa.clone(), self.mask.val(), cache));
-        let x = self.blocks.iter().fold(x, |x, block| block.forward(x, xa.clone(), self.mask.val()));
+        let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward_cache(x, xa.clone(), self.mask.val(), cache));
+        //let x = self.blocks.iter().fold(x, |x, block| block.forward(x, xa.clone(), self.mask.val()));
 
-        let o1 = cache.out.forward_autoregressive(x.clone(), 1, |t| {
+        cache.out.forward_autoregressive(x, 1, |t| {
             let t = self.ln.forward(t);
             t.matmul(self.token_embedding.val().transpose().unsqueeze::<3>())
-        });
-
-        let o2 = self.ln.forward(x).matmul(self.token_embedding.val().transpose().unsqueeze::<3>());
-
-        /*{
-            let layer2 = o2.clone().slice([0..1, 1..2]).flatten::<1>(0, 2);
-            if let Some(old_layer2) = cache.layer2_out.clone() {
-                let diff = (layer2.clone() - old_layer2).abs().max().into_scalar().elem::<f64>();
-                println!("\n\n\nLayer2 Diff = {}\n\n\n", diff);
-            };
-
-            cache.layer2_out = Some( layer2 );
-        }*/
-
-        let diff = (o1.clone() - o2.clone()).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
-        /*if true {
-            for i in 0..seq_len {
-                let diff = (o1.clone().slice([0..1, i..i+1]) - o2.clone().slice([0..1, i..i+1])).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
-                let few_diff = (o1.clone().slice([0..1, i..i+1]) - o2.clone().slice([0..1, i..i+1])).flatten::<1>(0, 2).abs().slice([0..20]).into_data();
-                println!("Layer {} diff = {}", i, diff);
-                println!("Few diff: {:?}", few_diff);
-                /*if diff > 1.0 {
-                    panic!("WTF!?!");
-                }*/
-            }
-        }*/
-        println!("Diff = {}", diff);
-
-        o1
+        })
     }
 
     pub fn cache_empty(&self) -> TextDecoderCache<B> {
@@ -445,7 +417,7 @@ impl<B: Backend> ResidualDecoderAttentionBlock<B> {
 
     fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, mask: Tensor<B, 2>, cache: &mut ResidualDecoderAttentionBlockCache<B>) -> Tensor<B, 3> {
         let ln = self.attn_ln.forward(x.clone());
-        let x = x + self.attn.forward_cache(ln, Some(mask), &mut cache.attn);
+        let x = x + self.attn.forward(ln, Some(mask)/*, &mut cache.attn*/);
 
         //let x = x.clone() + self.attn.forward(self.attn_ln.forward(x), Some(mask));
         
@@ -666,20 +638,20 @@ impl<B: Backend> MultiHeadCrossAttention<B> {
 
     pub fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, cache: &mut MultiHeadCrossAttentionCache<B>) -> Tensor<B, 3> {
         let [_, n, _] = x.dims();
-        let q2 = self.query.forward(x.clone());
-        let q = cache.query.forward_autoregressive(x, 1, |t| self.query.forward(t));
+        //let q2 = self.query.forward(x.clone());
+        let q = cache.query.forward_autoregressive(x.clone(), 1, |t| self.query.forward(t));
         let k = cache.key.forward_full(xa.clone(), |t| self.key.forward(t));
         let v = cache.value.forward_full(xa.clone(), |t| self.value.forward(t));
 
-        //let q2 = self.query.forward(x);
-        //let v2 = self.key.forward(xa.clone());
-        //let v = self.value.forward(xa);
+        let q2 = self.query.forward(x);
+        let k2 = self.key.forward(xa.clone());
+        let v2 = self.value.forward(xa);
 
         
-        let diff = (q.clone() - q2).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
+        let diff = (q.clone() - q2.clone()).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
         println!("Diff = {}", diff);
 
-        let wv = qkv_attention(q, k, v, None, self.n_head);
+        let wv = qkv_attention(q2, k2, v2, None, self.n_head);
 
         return cache.out.forward_autoregressive(wv, 1, |t| self.out.forward(t));
     }

@@ -233,7 +233,7 @@ fn mels_to_text<B: Backend>(
         [bpe.vocab_size()].into(),
     )).to_device(&device);*/
 
-    let beam_size = 1;//5;
+    let beam_size = 5;
     let max_depth = 100;
 
     let beamsearch_is_finished = |toks: &[BeamSearchToken]| {
@@ -270,9 +270,9 @@ fn mels_to_text<B: Backend>(
             };
 
             // BUGGED! Should clone because SOMEONE used unsafe code somewhere
-            let log_probs = log_softmax(logits_tensor, 0).into_data().value;
+            //let log_probs = log_softmax(logits_tensor, 0).into_data().value;
 
-            //let log_probs = log_softmax(logits_tensor.clone(), 0).into_data().value;
+            let log_probs = log_softmax(logits_tensor.clone(), 0).into_data().value;
 
             log_probs.into_iter().map(|v| v.elem::<f64>())
                 .enumerate()
