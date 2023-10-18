@@ -16,7 +16,7 @@ use burn::{
         backend::{self, Backend},
         Data, Float, Int, Tensor,
         ElementConversion, 
-        activation::log_softmax, 
+        activation::{softmax, log_softmax}, 
     },
 };
 
@@ -143,7 +143,9 @@ use std::f32;
 struct BeamSearchToken {
     token: usize, 
     log_prob: f64, 
-}                             
+}
+
+use crate::executor::WhisperExecutor;
 
 fn mels_to_text<B: Backend>(
     whisper: &Whisper<B>,
@@ -154,6 +156,7 @@ fn mels_to_text<B: Backend>(
     padding: usize,
 ) -> token::Result<(String, Vec<usize>)> {
     let device = mels.device();
+    let mut executor = WhisperExecutor::from_whisper(whisper);
 
     let n_ctx_max_encoder = whisper.encoder_ctx_size();
     let n_ctx_max_decoder = whisper.decoder_ctx_size();
@@ -219,7 +222,8 @@ fn mels_to_text<B: Backend>(
         log_prob: 0.0, 
     };
 
-    let encoder_output = whisper.forward_encoder(mels);
+    //let encoder_output = whisper.forward_encoder(mels);
+    executor.process_audio(mels);
 
     let neg_infty = -f32::INFINITY;
     /*let mut nonspecial_mask: Vec<f32> = (0..bpe.vocab_size()).into_iter().map(|tok| /*if bpe.is_special(tok) {neg_infty} else {0.0}*/ 0.0).collect();
@@ -229,7 +233,7 @@ fn mels_to_text<B: Backend>(
         [bpe.vocab_size()].into(),
     )).to_device(&device);*/
 
-    let beam_size = 5;
+    let beam_size = 1;//5;
     let max_depth = 100;
 
     let beamsearch_is_finished = |toks: &[BeamSearchToken]| {
@@ -242,19 +246,51 @@ fn mels_to_text<B: Backend>(
 
     let vocab_size = bpe.vocab_size();
     let mut special_tokens_maskout: Vec<f32> = (0..vocab_size).into_iter().map(|token| if bpe.is_special(token) {neg_infty} else {0.0}).collect();
-    //special_tokens_maskout[end_token] = 1.0;
+    //special_tokens_maskout[end_token] = 0.0;
 
-    let special_tokens_maskout = Tensor::from_data(Data::new(
+    let special_tokens_maskout: Tensor<B, 1> = Tensor::from_data(Data::new(
         special_tokens_maskout,
         [vocab_size].into(),
     ).convert())
     .to_device(&device);
 
-    //let mut cache = whisper.cache_empty();
+    let mut cache = whisper.cache_empty();
 
-    let beamsearch_next = |beams: &[BeamNode]| {
-        // convert tokens into tensor
+    let mut beamsearch_next = move |beams: &[BeamNode]| {
         let max_seq_len = beams.iter().map(|beam| beam.seq.len()).max().unwrap_or(0);
+        
+        let continuations: Vec<Vec<(BeamSearchToken, f64)>> = beams.iter().map(|beam| {
+            let tokens: Vec<_> = beam.seq.iter().map(|btok| btok.token).collect();
+
+            let logits_tensor = executor.get_next_token_prediction_logits(&tokens).unwrap();
+            let logits_tensor = if max_seq_len > 5 {
+                logits_tensor
+            } else {
+                logits_tensor + special_tokens_maskout.clone()
+            };
+
+            // BUGGED! Should clone because SOMEONE used unsafe code somewhere
+            let log_probs = log_softmax(logits_tensor, 0).into_data().value;
+
+            //let log_probs = log_softmax(logits_tensor.clone(), 0).into_data().value;
+
+            log_probs.into_iter().map(|v| v.elem::<f64>())
+                .enumerate()
+                .map(|(token_id, log_prob)| 
+                    (
+                        BeamSearchToken {
+                            token: token_id, 
+                            log_prob: log_prob, 
+                        }, 
+                        beam.log_prob + log_prob,
+                    )
+                ).collect::<Vec<_>>()
+        }).collect();
+
+        continuations
+
+        // convert tokens into tensor
+        /*let max_seq_len = beams.iter().map(|beam| beam.seq.len()).max().unwrap_or(0);
         let flattened_tokens: Vec<_> = beams
             .iter()
             .flat_map(|beam| {
@@ -305,7 +341,7 @@ fn mels_to_text<B: Backend>(
                     .collect()
             }).collect();
 
-        continuations
+        continuations*/
     };
 
     let tokens: Vec<_> = beam::beam_search(vec![initial_tokens], beamsearch_next, beamsearch_is_finished, beam_size, max_depth)
@@ -313,25 +349,77 @@ fn mels_to_text<B: Backend>(
         .map(|btok| btok.token)
         .collect();
 
-    /*let mut tokens: Vec<_> = [start_token, lang_token, transcription_token, notimestamp].to_vec();
+    /*let mut beam = initial_tokens;
+
+    let mut tokens = Vec::new();
 
     loop {
-        if tokens.len() >= n_ctx_max_decoder {
-            tokens.push(end_token);
+        let max_seq_len = beam.seq.len();
+        
+        let continuations: Vec<(BeamSearchToken, f64)> = {
+            let tokens: Vec<_> = beam.seq.iter().map(|btok| btok.token).collect();
+
+            let logits_tensor = executor.get_next_token_prediction_logits(&tokens).unwrap();
+            let logits_tensor = if max_seq_len > 5 {
+                logits_tensor
+            } else {
+                logits_tensor + special_tokens_maskout.clone()
+            };
+
+            //let log_probs = log_softmax(logits_tensor, 0).into_data().value;
+            let log_probs = logits_tensor.into_data().value;
+
+            log_probs.into_iter().map(|v| v.elem::<f64>())
+                .enumerate()
+                .map(|(token_id, log_prob)| 
+                    (
+                        BeamSearchToken {
+                            token: token_id, 
+                            log_prob: log_prob, 
+                        }, 
+                        beam.log_prob + log_prob,
+                    )
+                ).collect::<Vec<_>>()
+        };
+
+
+        /*let top_new_beams = beam::get_top_elements(continuations, |(_, log_prob)| *log_prob, 1)
+            .into_iter()
+            .map(move |(tok, log_prob)| {
+                BeamNode {
+                    seq: [beam.seq.clone(), vec![tok.clone()]].concat(),
+                    log_prob: *log_prob,
+                }
+            });*/
+
+        let (tok, log_prob) = continuations.iter().max_by(|a1, a2| a1.1.partial_cmp(&a2.1).unwrap()).unwrap();
+        beam = BeamNode {
+            seq: [beam.seq.clone(), vec![tok.clone()]].concat(),
+            log_prob: *log_prob,
+        };
+
+        if beamsearch_is_finished(&beam.seq) {
+            //return beams[0].seq.clone();
+            tokens = beam.seq.clone();
             break;
         }
+    }
 
-        let token_tensor = Tensor::from_ints(Data::from_usize(Data::new(
-            tokens.clone(),
-            [tokens.len()].into(),
-        )))
-        .unsqueeze::<2>()
-        .to_device(&device);
+    let tokens: Vec<_> = tokens.into_iter()
+    .map(|btok| btok.token)
+    .collect();*/
 
-        let out = whisper.forward_decoder(token_tensor, encoder_output.clone());
+    let mut cache = whisper.cache_empty();
 
-        let [n_batch, n_token, n_dict] = out.dims();
-        let last_row: Tensor<B, 1> = out.slice([0..1, (n_token - 1)..n_token]).flatten(0, 2);
+    /*let mut get_logits = |tokens: &[usize], tokens_corrupted: &[usize]| {
+        let last_row = executor.get_next_token_prediction_logits(tokens_corrupted).unwrap();
+        let last_row = executor.get_next_token_prediction_logits(tokens).unwrap();
+        
+        let last_row = if tokens.len() > 10 {
+            last_row
+        } else {
+            last_row + special_tokens_maskout.clone()
+        };
 
         let token_id = last_row.clone().argmax(0).into_scalar().to_usize().unwrap();
         let token_logit = last_row
@@ -346,11 +434,60 @@ fn mels_to_text<B: Backend>(
             .to_f64()
             .unwrap();
 
+        (token_id, token_logit, eot_logit)
+    };
+
+    let mut tokens: Vec<_> = [start_token, lang_token, transcription_token, notimestamp].to_vec();
+    let mut tokens_corrupted = tokens.clone();
+
+    loop {
+        if tokens.len() >= n_ctx_max_decoder {
+            tokens.push(end_token);
+            break;
+        }
+
+        /*let token_tensor = Tensor::from_ints(Data::from_usize(Data::new(
+            tokens.clone(),
+            [tokens.len()].into(),
+        )))
+        .unsqueeze::<2>()
+        .to_device(&device);*/
+
+        /*let out = whisper.forward_decoder_cache(token_tensor, encoder_output.clone(), &mut cache);
+
+        let [n_batch, n_token, n_dict] = out.dims();
+        let last_row: Tensor<B, 1> = out.slice([0..1, (n_token - 1)..n_token]).flatten(0, 2);*/
+
+        /*let last_row = executor.get_next_token_prediction_logits(&tokens_corrupted).unwrap();
+        let last_row = executor.get_next_token_prediction_logits(&tokens).unwrap();
+        
+        let last_row = if tokens.len() > 10 {
+            last_row
+        } else {
+            last_row + special_tokens_maskout.clone()
+        };
+
+        let token_id = last_row.clone().argmax(0).into_scalar().to_usize().unwrap();
+        let token_logit = last_row
+            .clone()
+            .slice([token_id..(token_id + 1)])
+            .into_scalar()
+            .to_f64()
+            .unwrap();
+        let eot_logit = last_row
+            .slice([end_token..(end_token + 1)])
+            .into_scalar()
+            .to_f64()
+            .unwrap();*/
+        
+        let (token_id, token_logit, eot_logit) = get_logits(&tokens, &tokens_corrupted);    
+        
         tokens.push(token_id);
+        tokens_corrupted.push(4);
         //println!("{}", bpe.decode(&[token_id], false)?);
 
         // if end of text confidence is great enough then stop
-        if (eot_logit - token_logit).exp() > 0.5 {
+        if (eot_logit - token_logit).exp() > 0.5 && tokens.len() > 10 {
             if token_id != end_token {
                 tokens.push(end_token);
             }
@@ -368,7 +505,7 @@ fn mels_to_text<B: Backend>(
             tokens.push(end_token);
             break;
         }*/
-        if let Some( (index_of_first_repeat, end) ) =
+        /*if let Some( (index_of_first_repeat, end) ) =
             find_repeated_tokens_index(&tokens[..], repeat_window_size, min_n_repeats)
         {
             //let end = index_of_first_repeat + repeat_window_size;
@@ -376,7 +513,7 @@ fn mels_to_text<B: Backend>(
             tokens.truncate(end);
             tokens.push(end_token);
             break;
-        }
+        }*/
     }*/
 
     let text = bpe.decode(&tokens[..], true)?;

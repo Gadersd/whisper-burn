@@ -4,6 +4,7 @@ use burn::{
         self,
         conv::{Conv1d, Conv1dConfig, Conv1dRecord},
         PaddingConfig1d,
+        LayerNormConfig, LayerNorm, 
     },
     tensor::{activation::relu, backend::Backend, Bool, Int, Tensor},
 };
@@ -65,7 +66,7 @@ fn load_linear<B: Backend>(path: &str) -> Result<nn::Linear<B>, Box<dyn Error>> 
     Ok(linear)
 }
 
-fn load_layer_norm<B: Backend>(path: &str) -> Result<nn::LayerNorm<B>, Box<dyn Error>> {
+fn load_layer_norm<B: Backend>(path: &str) -> Result<LayerNorm<B>, Box<dyn Error>> {
     let weight = load_tensor::<B, 1>("weight", path)?;
     let bias = load_tensor::<B, 1>("bias", path)?;
     let eps = load_f32::<B>("eps", path)? as f64;
@@ -78,7 +79,7 @@ fn load_layer_norm<B: Backend>(path: &str) -> Result<nn::LayerNorm<B>, Box<dyn E
         epsilon: <f64 as Module<B>>::into_record(eps),
     };
 
-    let layer_norm: nn::LayerNorm<B> = nn::LayerNormConfig::new(n_state).init_with(record);
+    let layer_norm: LayerNorm<B> = LayerNormConfig::new(n_state).init_with(record);
 
     Ok(layer_norm)
 }

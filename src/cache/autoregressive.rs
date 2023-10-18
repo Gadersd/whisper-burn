@@ -37,6 +37,16 @@ impl<B: Backend, const D: usize> TensorCache<B, D> {
     where
         F: Fn(Tensor<B, 3>) -> Tensor<B, D>,
     {
+        /*let new_state = match self.state.as_ref() {
+            Some(t) => t.clone(), 
+            None => func(tensor)
+        };
+
+        self.state = Some( new_state.clone() );
+
+        new_state*/
+        
+
         let mut tensor_old = CacheState::Empty;
         core::mem::swap(&mut self.state, &mut tensor_old);
 

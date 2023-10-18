@@ -11,9 +11,13 @@ use burn::{
         self,
         conv::{Conv1d, Conv1dConfig, Conv1dRecord},
         PaddingConfig1d,
+        LayerNormConfig, 
+        LayerNorm, 
     },
     tensor::{activation::softmax, backend::Backend, module::embedding, Distribution, Int, Tensor},
 };
+
+pub type WhisperCache<B> = TextDecoderCache<B>;
 
 #[derive(Config, Debug)]
 pub struct WhisperConfig {
@@ -112,7 +116,7 @@ impl TextDecoderConfig {
                 ResidualDecoderAttentionBlockConfig::new(self.n_text_state, self.n_text_head).init()
             })
             .collect();
-        let ln = nn::LayerNormConfig::new(self.n_text_state).init();
+        let ln = LayerNormConfig::new(self.n_text_state).init();
 
         let mask = attn_decoder_mask(self.n_text_ctx).into();
 
@@ -136,7 +140,7 @@ pub struct TextDecoder<B: Backend> {
     token_embedding: Param<Tensor<B, 2>>,
     positional_embedding: Param<Tensor<B, 2>>,
     blocks: Vec<ResidualDecoderAttentionBlock<B>>,
-    ln: nn::LayerNorm<B>,
+    ln: LayerNorm<B>,
     mask: Param<Tensor<B, 2>>,
     n_vocab: usize,
     n_text_ctx: usize,
@@ -187,12 +191,41 @@ impl<B: Backend> TextDecoder<B> {
 
         //let mask = attn_decoder_mask(seq_len);
 
-        let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward_cache(x, xa.clone(), self.mask.val(), cache));
+        //let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward(x, xa.clone(), self.mask.val(), cache));
+        let x = self.blocks.iter().fold(x, |x, block| block.forward(x, xa.clone(), self.mask.val()));
 
-        cache.out.forward_autoregressive(x, 1, |t| {
+        let o1 = cache.out.forward_autoregressive(x.clone(), 1, |t| {
             let t = self.ln.forward(t);
             t.matmul(self.token_embedding.val().transpose().unsqueeze::<3>())
-        })
+        });
+
+        let o2 = self.ln.forward(x).matmul(self.token_embedding.val().transpose().unsqueeze::<3>());
+
+        /*{
+            let layer2 = o2.clone().slice([0..1, 1..2]).flatten::<1>(0, 2);
+            if let Some(old_layer2) = cache.layer2_out.clone() {
+                let diff = (layer2.clone() - old_layer2).abs().max().into_scalar().elem::<f64>();
+                println!("\n\n\nLayer2 Diff = {}\n\n\n", diff);
+            };
+
+            cache.layer2_out = Some( layer2 );
+        }*/
+
+        let diff = (o1.clone() - o2.clone()).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
+        /*if true {
+            for i in 0..seq_len {
+                let diff = (o1.clone().slice([0..1, i..i+1]) - o2.clone().slice([0..1, i..i+1])).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
+                let few_diff = (o1.clone().slice([0..1, i..i+1]) - o2.clone().slice([0..1, i..i+1])).flatten::<1>(0, 2).abs().slice([0..20]).into_data();
+                println!("Layer {} diff = {}", i, diff);
+                println!("Few diff: {:?}", few_diff);
+                /*if diff > 1.0 {
+                    panic!("WTF!?!");
+                }*/
+            }
+        }*/
+        println!("Diff = {}", diff);
+
+        o1
     }
 
     pub fn cache_empty(&self) -> TextDecoderCache<B> {
@@ -204,9 +237,11 @@ impl<B: Backend> TextDecoder<B> {
     }
 }
 
+#[derive(Clone)]
 pub struct TextDecoderCache<B: Backend> {
     blocks: Vec<ResidualDecoderAttentionBlockCache<B>>,
     out: TensorCache<B, 3>,
+    layer2_out: Option<Tensor<B, 1>>, 
 }
 
 impl<B: Backend> TextDecoderCache<B> {
@@ -215,6 +250,7 @@ impl<B: Backend> TextDecoderCache<B> {
         Self {
             blocks: (0..n_blocks).into_iter().map(|_| ResidualDecoderAttentionBlockCache::empty()).collect(), 
             out: TensorCache::empty(), 
+            layer2_out: None, 
         }
     }
 }
@@ -246,7 +282,7 @@ impl AudioEncoderConfig {
                     .init()
             })
             .collect();
-        let ln_post = nn::LayerNormConfig::new(self.n_audio_state).init();
+        let ln_post = LayerNormConfig::new(self.n_audio_state).init();
         let positional_embedding = Tensor::random(
             [self.n_audio_ctx, self.n_audio_state],
             Distribution::Normal(0.0, 1.0),
@@ -276,7 +312,7 @@ pub struct AudioEncoder<B: Backend> {
     conv2: Conv1d<B>,
     gelu2: nn::GELU,
     blocks: Vec<ResidualEncoderAttentionBlock<B>>,
-    ln_post: nn::LayerNorm<B>,
+    ln_post: LayerNorm<B>,
     positional_embedding: Param<Tensor<B, 2>>,
     n_mels: usize,
     n_audio_ctx: usize,
@@ -331,10 +367,10 @@ pub struct ResidualEncoderAttentionBlockConfig {
 impl ResidualEncoderAttentionBlockConfig {
     pub fn init<B: Backend>(&self) -> ResidualEncoderAttentionBlock<B> {
         let attn = MultiHeadSelfAttentionConfig::new(self.n_state, self.n_head).init();
-        let attn_ln = nn::LayerNormConfig::new(self.n_state).init();
+        let attn_ln = LayerNormConfig::new(self.n_state).init();
 
         let mlp = MLPConfig::new(self.n_state).init();
-        let mlp_ln = nn::LayerNormConfig::new(self.n_state).init();
+        let mlp_ln = LayerNormConfig::new(self.n_state).init();
 
         ResidualEncoderAttentionBlock {
             attn,
@@ -348,9 +384,9 @@ impl ResidualEncoderAttentionBlockConfig {
 #[derive(Module, Debug)]
 pub struct ResidualEncoderAttentionBlock<B: Backend> {
     attn: MultiHeadSelfAttention<B>,
-    attn_ln: nn::LayerNorm<B>,
+    attn_ln: LayerNorm<B>,
     mlp: MLP<B>,
-    mlp_ln: nn::LayerNorm<B>,
+    mlp_ln: LayerNorm<B>,
 }
 
 impl<B: Backend> ResidualEncoderAttentionBlock<B> {
@@ -370,13 +406,13 @@ pub struct ResidualDecoderAttentionBlockConfig {
 impl ResidualDecoderAttentionBlockConfig {
     pub fn init<B: Backend>(&self) -> ResidualDecoderAttentionBlock<B> {
         let attn = MultiHeadSelfAttentionConfig::new(self.n_state, self.n_head).init();
-        let attn_ln = nn::LayerNormConfig::new(self.n_state).init();
+        let attn_ln = LayerNormConfig::new(self.n_state).init();
 
         let cross_attn = MultiHeadCrossAttentionConfig::new(self.n_state, self.n_head).init();
-        let cross_attn_ln = nn::LayerNormConfig::new(self.n_state).init();
+        let cross_attn_ln = LayerNormConfig::new(self.n_state).init();
 
         let mlp = MLPConfig::new(self.n_state).init();
-        let mlp_ln = nn::LayerNormConfig::new(self.n_state).init();
+        let mlp_ln = LayerNormConfig::new(self.n_state).init();
 
         ResidualDecoderAttentionBlock {
             attn,
@@ -392,11 +428,11 @@ impl ResidualDecoderAttentionBlockConfig {
 #[derive(Module, Debug)]
 pub struct ResidualDecoderAttentionBlock<B: Backend> {
     attn: MultiHeadSelfAttention<B>,
-    attn_ln: nn::LayerNorm<B>,
+    attn_ln: LayerNorm<B>,
     cross_attn: MultiHeadCrossAttention<B>,
-    cross_attn_ln: nn::LayerNorm<B>,
+    cross_attn_ln: LayerNorm<B>,
     mlp: MLP<B>,
-    mlp_ln: nn::LayerNorm<B>,
+    mlp_ln: LayerNorm<B>,
 }
 
 impl<B: Backend> ResidualDecoderAttentionBlock<B> {
@@ -408,24 +444,26 @@ impl<B: Backend> ResidualDecoderAttentionBlock<B> {
     }
 
     fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, mask: Tensor<B, 2>, cache: &mut ResidualDecoderAttentionBlockCache<B>) -> Tensor<B, 3> {
-        let ln = cache.attn_ln.forward_autoregressive(x.clone(), 1, |t| self.attn_ln.forward(t));
+        let ln = self.attn_ln.forward(x.clone());
         let x = x + self.attn.forward_cache(ln, Some(mask), &mut cache.attn);
+
+        //let x = x.clone() + self.attn.forward(self.attn_ln.forward(x), Some(mask));
         
         let x = x.clone() + self.cross_attn.forward_cache(self.cross_attn_ln.forward(x), xa, &mut cache.cross_attn);
 
         let x = cache.out.forward_autoregressive(x, 1, |t| {
             t.clone() + self.mlp.forward(self.mlp_ln.forward(t))
         });
+        //let x = x.clone() + self.mlp.forward(self.mlp_ln.forward(x));
 
         return x;
     }
 }
 
+#[derive(Clone)]
 pub struct ResidualDecoderAttentionBlockCache<B: Backend> {
     attn: MultiHeadSelfAttentionCache<B>,
-    attn_ln: TensorCache<B, 3>,
     cross_attn: MultiHeadCrossAttentionCache<B>,
-    cross_attn_ln: TensorCache<B, 3>,
     out: TensorCache<B, 3>,
 }
 
@@ -433,9 +471,7 @@ impl<B: Backend> ResidualDecoderAttentionBlockCache<B> {
     fn empty() -> Self {
         Self {
             attn: MultiHeadSelfAttentionCache::empty(), 
-            attn_ln: TensorCache::empty(), 
             cross_attn: MultiHeadCrossAttentionCache::empty(), 
-            cross_attn_ln: TensorCache::empty(), 
             out: TensorCache::empty(), 
         }
     }
@@ -477,6 +513,7 @@ impl<B: Backend> MLP<B> {
     }
 }
 
+#[derive(Clone)]
 pub struct MLPCache<B: Backend> {
     lin2: TensorCache<B, 3>,
 }
@@ -553,6 +590,7 @@ impl<B: Backend> MultiHeadSelfAttention<B> {
     }
 }
 
+#[derive(Clone)]
 pub struct MultiHeadSelfAttentionCache<B: Backend> {
     query: TensorCache<B, 3>,
     key: TensorCache<B, 3>,
@@ -613,6 +651,8 @@ pub struct MultiHeadCrossAttention<B: Backend> {
     out: nn::Linear<B>,
 }
 
+use burn::tensor::ElementConversion;
+
 impl<B: Backend> MultiHeadCrossAttention<B> {
     pub fn forward(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>) -> Tensor<B, 3> {
         let q = self.query.forward(x);
@@ -625,9 +665,19 @@ impl<B: Backend> MultiHeadCrossAttention<B> {
     }
 
     pub fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, cache: &mut MultiHeadCrossAttentionCache<B>) -> Tensor<B, 3> {
+        let [_, n, _] = x.dims();
+        let q2 = self.query.forward(x.clone());
         let q = cache.query.forward_autoregressive(x, 1, |t| self.query.forward(t));
-        let k = cache.key.forward_autoregressive(xa.clone(), 1, |t| self.key.forward(t));
-        let v = cache.value.forward_autoregressive(xa, 1, |t| self.value.forward(t));
+        let k = cache.key.forward_full(xa.clone(), |t| self.key.forward(t));
+        let v = cache.value.forward_full(xa.clone(), |t| self.value.forward(t));
+
+        //let q2 = self.query.forward(x);
+        //let v2 = self.key.forward(xa.clone());
+        //let v = self.value.forward(xa);
+
+        
+        let diff = (q.clone() - q2).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
+        println!("Diff = {}", diff);
 
         let wv = qkv_attention(q, k, v, None, self.n_head);
 
@@ -635,6 +685,7 @@ impl<B: Backend> MultiHeadCrossAttention<B> {
     }
 }
 
+#[derive(Clone)]
 pub struct MultiHeadCrossAttentionCache<B: Backend> {
     query: TensorCache<B, 3>,
     key: TensorCache<B, 3>,
