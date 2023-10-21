@@ -194,10 +194,11 @@ impl<B: Backend> TextDecoder<B> {
         let x = self.blocks.iter().zip(&mut cache.blocks).fold(x, |x, (block, cache)| block.forward_cache(x, xa.clone(), self.mask.val(), cache));
         //let x = self.blocks.iter().fold(x, |x, block| block.forward(x, xa.clone(), self.mask.val()));
 
-        cache.out.forward_autoregressive(x, 1, |t| {
+        /*cache.out.forward_autoregressive(x, 1, |t| {
             let t = self.ln.forward(t);
             t.matmul(self.token_embedding.val().transpose().unsqueeze::<3>())
-        })
+        })*/
+        self.ln.forward(x).matmul(self.token_embedding.val().transpose().unsqueeze::<3>())
     }
 
     pub fn cache_empty(&self) -> TextDecoderCache<B> {
@@ -423,10 +424,10 @@ impl<B: Backend> ResidualDecoderAttentionBlock<B> {
         
         let x = x.clone() + self.cross_attn.forward_cache(self.cross_attn_ln.forward(x), xa, &mut cache.cross_attn);
 
-        let x = cache.out.forward_autoregressive(x, 1, |t| {
+        /*let x = cache.out.forward_autoregressive(x, 1, |t| {
             t.clone() + self.mlp.forward(self.mlp_ln.forward(t))
-        });
-        //let x = x.clone() + self.mlp.forward(self.mlp_ln.forward(x));
+        });*/
+        let x = x.clone() + self.mlp.forward(self.mlp_ln.forward(x));
 
         return x;
     }
@@ -639,21 +640,25 @@ impl<B: Backend> MultiHeadCrossAttention<B> {
     pub fn forward_cache(&self, x: Tensor<B, 3>, xa: Tensor<B, 3>, cache: &mut MultiHeadCrossAttentionCache<B>) -> Tensor<B, 3> {
         let [_, n, _] = x.dims();
         //let q2 = self.query.forward(x.clone());
-        let q = cache.query.forward_autoregressive(x.clone(), 1, |t| self.query.forward(t));
-        let k = cache.key.forward_full(xa.clone(), |t| self.key.forward(t));
-        let v = cache.value.forward_full(xa.clone(), |t| self.value.forward(t));
+        //let q = cache.query.forward_autoregressive(x.clone(), 1, |t| self.query.forward(t));
+        let q = self.query.forward(x);
+        //let k = cache.key.forward_full(xa.clone(), |t| self.key.forward(t));
+        //let v = cache.value.forward_full(xa.clone(), |t| self.value.forward(t));
 
-        let q2 = self.query.forward(x);
+        //let q2 = self.query.forward(x);
         let k2 = self.key.forward(xa.clone());
         let v2 = self.value.forward(xa);
 
+        //let data = q.clone().into_data();
+        //let new_q = Tensor::from_data(data);
         
-        let diff = (q.clone() - q2.clone()).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
-        println!("Diff = {}", diff);
+        //let diff = (q.clone() - q2.clone()).flatten::<1>(0, 2).abs().max().into_scalar().elem::<f64>();
+        //println!("Diff = {}", diff);
 
-        let wv = qkv_attention(q2, k2, v2, None, self.n_head);
+        let wv = qkv_attention(q, k2, v2, None, self.n_head);
+        println!("Data: {:?}", wv.clone().slice([0..1, 0..1, 0..20]).into_data());
 
-        return cache.out.forward_autoregressive(wv, 1, |t| self.out.forward(t));
+        return self.out.forward(wv); //cache.out.forward_autoregressive(wv, 1, |t| self.out.forward(t));
     }
 }
 

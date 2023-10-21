@@ -14,7 +14,7 @@ impl<B: Backend, const D: usize> TensorCache<B, D> {
     where
         F: Fn(Tensor<B, 3>) -> Tensor<B, D>,
     {
-        let mut tensor_old = CacheState::Empty;
+        /*let mut tensor_old = CacheState::Empty;
         core::mem::swap(&mut self.state, &mut tensor_old);
 
         let tensor_new = match tensor_old {
@@ -30,7 +30,11 @@ impl<B: Backend, const D: usize> TensorCache<B, D> {
         };
 
         self.state = CacheState::Value(tensor_new.clone());
-        tensor_new
+        tensor_new*/
+
+        let t = func(tensor);
+        //self.state = CacheState::Value(t.clone());
+        return t;
     }
 
     pub fn forward_full<F>(&mut self, tensor: Tensor<B, 3>, func: F) -> Tensor<B, D>
