@@ -1,4 +1,5 @@
 numpy
 typing
 torch
+tinygrad
 git+https://github.com/bayartsogt-ya/whisper-multiple-hf-datasets@main

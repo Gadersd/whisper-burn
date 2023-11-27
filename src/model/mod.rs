@@ -7,7 +7,7 @@ use burn::{
     module::{Module, Param},
     nn::{
         self,
-        conv::{Conv1d, Conv1dConfig, Conv1dRecord},
+        conv::{Conv1d, Conv1dConfig},
         PaddingConfig1d,
     },
     tensor::{activation::softmax, backend::Backend, module::embedding, Distribution, Int, Tensor},
@@ -129,7 +129,7 @@ pub struct TextDecoder<B: Backend> {
 
 impl<B: Backend> TextDecoder<B> {
     fn forward(&self, x: Tensor<B, 2, Int>, xa: Tensor<B, 3>) -> Tensor<B, 3> {
-        let [n_batch, seq_len] = x.dims();
+        let [_n_batch, seq_len] = x.dims();
 
         assert!(
             seq_len <= self.n_text_ctx,

@@ -1,10 +1,11 @@
-use std::collections::HashMap;
-use std::iter;
-
-use whisper::helper::*;
 use whisper::model::*;
-use whisper::{token, token::Language};
+use whisper::token::Language;
 use whisper::transcribe::waveform_to_text;
+use whisper::token::Gpt2Tokenizer;
+
+use burn::record::{DefaultRecorder, Recorder, RecorderError};
+
+use std::{env, fs, process};
 
 use strum::IntoEnumIterator;
 
@@ -19,23 +20,19 @@ cfg_if::cfg_if! {
 use burn::{
     config::Config,
     module::Module,
-    tensor::{
-        self,
-        backend::{self, Backend},
-        Data, Float, Int, Tensor,
-    },
+    tensor::backend::Backend,
 };
 
 use hound::{self, SampleFormat};
 
 fn load_audio_waveform<B: Backend>(filename: &str) -> hound::Result<(Vec<f32>, usize)> {
-    let mut reader = hound::WavReader::open(filename)?;
+    let reader = hound::WavReader::open(filename)?;
     let spec = reader.spec();
 
-    let duration = reader.duration() as usize;
+    let _duration = reader.duration() as usize;
     let channels = spec.channels as usize;
     let sample_rate = spec.sample_rate as usize;
-    let bits_per_sample = spec.bits_per_sample;
+    let _bits_per_sample = spec.bits_per_sample;
     let sample_format = spec.sample_format;
 
     assert_eq!(sample_rate, 16000, "The audio sample rate must be 16k.");
@@ -54,12 +51,6 @@ fn load_audio_waveform<B: Backend>(filename: &str) -> hound::Result<(Vec<f32>, u
     return Ok((floats, sample_rate));
 }
 
-use num_traits::ToPrimitive;
-use whisper::audio::prep_audio;
-use whisper::token::{Gpt2Tokenizer, SpecialToken};
-
-use burn::record::{DefaultRecorder, Recorder, RecorderError};
-
 fn load_whisper_model_file<B: Backend>(
     config: &WhisperConfig,
     filename: &str,
@@ -69,7 +60,6 @@ fn load_whisper_model_file<B: Backend>(
         .map(|record| config.init().load_record(record))
 }
 
-use std::{env, fs, process};
 
 fn main() {
     cfg_if::cfg_if! {
@@ -142,7 +132,7 @@ fn main() {
 
     let whisper = whisper.to_device(&device);
 
-    let (text, tokens) = match waveform_to_text(&whisper, &bpe, lang, waveform, sample_rate) {
+    let (text, _tokens) = match waveform_to_text(&whisper, &bpe, lang, waveform, sample_rate) {
         Ok((text, tokens)) => (text, tokens),
         Err(e) => {
             eprintln!("Error during transcription: {}", e);
