@@ -2,9 +2,7 @@ use whisper::model::{load::*, *};
 
 use burn::{
     module::Module,
-    tensor::{
-        backend::{Backend},
-    },
+    tensor::backend::Backend,
 };
 
 use burn_tch::{TchBackend, TchDevice};
