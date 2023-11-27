@@ -10,13 +10,14 @@ This project is licensed under the terms of the MIT license.
 
 The OpenAI Whisper models that have been converted to work in burn are available in the whisper-burn space on Hugging Face. You can find them at [https://huggingface.co/Gadersd/whisper-burn](https://huggingface.co/Gadersd/whisper-burn).
 
-If you have a custom fine-tuned model you can easily convert it to burn's format. Here is an example of converting OpenAI's tiny en model. The tinygrad dependency of the dump.py script should be installed from source not with pip.
+If you have a custom fine-tuned model you can easily convert it to burn's format. Here is an example of converting OpenAI's tiny en model:
 
 ```
-# Download the tiny_en tokenizer
-wget https://huggingface.co/Gadersd/whisper-burn/resolve/main/tiny_en/tokenizer.json
-
 cd python
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
 wget https://openaipublic.azureedge.net/main/whisper/models/d3dd57d32accea0b295c96e26691aa14d8822fac7d9d27d5dc00b4ca2826dd03/tiny.en.pt
 python3 dump.py tiny.en.pt tiny_en
 mv tiny_en ../

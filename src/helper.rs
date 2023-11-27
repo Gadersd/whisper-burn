@@ -1,5 +1,5 @@
 use burn::tensor::{
-    activation::relu, backend::Backend, BasicOps, Bool, Element, Float, Int, Numeric, Tensor,
+    activation::relu, backend::Backend, BasicOps, Element, Numeric, Tensor,
     TensorKind,
 };
 

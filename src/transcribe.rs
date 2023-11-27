@@ -1,20 +1,19 @@
 use crate::audio::{max_waveform_samples, prep_audio};
-use crate::helper::*;
+
 use crate::model::*;
 use crate::token::{self, *};
 use crate::beam;
 
-use num_traits::ToPrimitive;
+
 
 use std::iter;
 
 use burn::{
-    config::Config,
     module::Module,
     tensor::{
         self,
-        backend::{self, Backend},
-        Data, Float, Int, Tensor,
+        backend::{Backend},
+        Data, Tensor,
         ElementConversion, 
         activation::log_softmax, 
     },
@@ -50,7 +49,7 @@ pub fn waveform_to_text<B: Backend>(
         prev_normal_tokens.reverse();
         //println!("Prev tokens: {:?} {}", prev_normal_tokens, bpe.decode(&prev_normal_tokens[..], false)?);
 
-        let (new_text, new_tokens) =
+        let (_new_text, new_tokens) =
             mels_to_text(whisper, bpe, lang, mel, &prev_normal_tokens[..], padding)?;
 
         if let Some((prev_index, curr_index)) =
@@ -156,9 +155,9 @@ fn mels_to_text<B: Backend>(
     let device = mels.device();
 
     let n_ctx_max_encoder = whisper.encoder_ctx_size();
-    let n_ctx_max_decoder = whisper.decoder_ctx_size();
+    let _n_ctx_max_decoder = whisper.decoder_ctx_size();
 
-    let [n_channel, n_mel, n_ctx] = mels.dims();
+    let [_n_channel, n_mel, n_ctx] = mels.dims();
     if n_ctx + padding > n_ctx_max_encoder {
         println!(
             "Audio has length of {} which exceeds maximum length {}. It will be clipped.",
@@ -180,7 +179,7 @@ fn mels_to_text<B: Backend>(
     let transcription_token = bpe.special_token(SpecialToken::Transcribe).unwrap();
     let start_of_prev_token = bpe.special_token(SpecialToken::StartofPrev).unwrap();
     let lang_token = bpe.special_token(SpecialToken::Language(lang)).unwrap();
-    let first_timestamp_token = bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap();
+    let _first_timestamp_token = bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap();
     let end_token = bpe.special_token(SpecialToken::EndofText).unwrap();
     let notimestamp = bpe.special_token(SpecialToken::NoTimeStamps).unwrap();
 
@@ -192,7 +191,7 @@ fn mels_to_text<B: Backend>(
     .chain(iter::once(bpe.special_token(SpecialToken::Timestamp(0.0)).unwrap()))
     .collect();*/
 
-    let mut initial_tokens = if prev_nonspecial_tokens.len() > 0 {
+    let _initial_tokens = if prev_nonspecial_tokens.len() > 0 {
         iter::once(start_of_prev_token).chain(prev_nonspecial_tokens.iter().cloned()).collect()
     } else {
         Vec::new()
@@ -241,7 +240,7 @@ fn mels_to_text<B: Backend>(
     };
 
     let vocab_size = bpe.vocab_size();
-    let mut special_tokens_maskout: Vec<f32> = (0..vocab_size).into_iter().map(|token| if bpe.is_special(token) {neg_infty} else {0.0}).collect();
+    let special_tokens_maskout: Vec<f32> = (0..vocab_size).into_iter().map(|token| if bpe.is_special(token) {neg_infty} else {0.0}).collect();
     //special_tokens_maskout[end_token] = 1.0;
 
     let special_tokens_maskout = Tensor::from_data(Data::new(
@@ -275,7 +274,7 @@ fn mels_to_text<B: Backend>(
         };
         let log_probs = log_softmax(logits, 2);
 
-        let [n_batch, n_token, n_dict] = log_probs.dims();
+        let [_n_batch, _n_token, _n_dict] = log_probs.dims();
         let beam_log_probs = beams.iter().enumerate().map(|(i, beam)| {
             let batch = i;
             let token_index = beam.seq.len() - 1;

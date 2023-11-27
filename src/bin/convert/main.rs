@@ -2,11 +2,7 @@ use whisper::model::{load::*, *};
 
 use burn::{
     module::Module,
-    tensor::{
-        self,
-        backend::{self, Backend},
-        Int, Tensor,
-    },
+    tensor::backend::Backend,
 };
 
 use burn_tch::{TchBackend, TchDevice};
@@ -30,7 +26,7 @@ fn main() {
     };
 
     type Backend = TchBackend<f32>;
-    let device = TchDevice::Cpu;
+    let _device = TchDevice::Cpu;
 
     let (whisper, whisper_config): (Whisper<Backend>, WhisperConfig) =
         match load_whisper(&model_name) {
